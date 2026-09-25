@@ -385,6 +385,9 @@ export function RunScreen() {
             Выбери буст
           </h2>
           {run.routeId === 'tutorial' && <div className="sub center">Бусты действуют только в этом забеге</div>}
+          <div className="cp-timer">
+            <i />
+          </div>
           <div className="boost-cards">
             {options.map((id) => {
               const Icon = BOOST_ICON[id];
@@ -405,7 +408,9 @@ export function RunScreen() {
           <h2 className="h-display red" style={{ fontSize: 30 }}>
             Столкновение!
           </h2>
-          <div className="revive-timer">{reviveLeft}</div>
+          <div className="revive-timer" style={{ ['--p' as string]: reviveLeft / 6 }}>
+            <span>{reviveLeft}</span>
+          </div>
           {canRevive && (
             <div className="col" style={{ width: '100%', maxWidth: 320 }}>
               <Btn variant="violet" block loading={reviveBusy} disabled={!hasToken} onClick={() => void revive('token')}>

@@ -719,3 +719,62 @@
   border-radius: 18px 18px 0 0;
   background: linear-gradient(180deg, transparent, rgba(4, 8, 22, 0.55) 40%);
 }
+.cp-timer {
+  width: min(320px, 80%);
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(20, 40, 80, 0.8);
+  overflow: hidden;
+  margin-top: 4px;
+}
+.cp-timer i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #35d7ff, #9b5cff);
+  box-shadow: 0 0 8px #35d7ff;
+  animation: cp-shrink 6s linear forwards;
+  transform-origin: left;
+}
+@keyframes cp-shrink {
+  to {
+    transform: scaleX(0);
+  }
+}
+.boost-card {
+  position: relative;
+  overflow: hidden;
+}
+.boost-card::after {
+  content: '';
+  position: absolute;
+  inset: -40% -60%;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.22) 50%, transparent 60%);
+  animation: card-sheen 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes card-sheen {
+  0% {
+    transform: translateX(-60%);
+  }
+  60%,
+  100% {
+    transform: translateX(60%);
+  }
+}
+.boost-card svg {
+  filter: drop-shadow(0 0 10px currentColor);
+}
+.revive-timer {
+  position: relative;
+  border: 0;
+  background: conic-gradient(#ff5a6a calc(var(--p) * 360deg), rgba(80, 20, 30, 0.6) 0);
+  transition: background 1s linear;
+}
+.revive-timer span {
+  display: grid;
+  place-items: center;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #2a0810, #12040a);
+}

@@ -390,8 +390,27 @@ export class GameEngine {
     this.opts.onEvent({ type: 'popup', text, kind });
   }
 
+  private comboMilestone = 0;
+  private static readonly MILESTONES: [number, string][] = [
+    [25, 'В ПОТОКЕ!'],
+    [50, 'ОГОНЬ!'],
+    [100, 'НЕУДЕРЖИМ!'],
+    [150, 'ЛЕГЕНДА ПУСТОТЫ!'],
+    [250, 'БОГ СКОРОСТИ!'],
+  ];
+
   private handleEvents() {
     const P = this.world.palette;
+    const next = GameEngine.MILESTONES[this.comboMilestone];
+    if (next && this.sim.combo >= next[0]) {
+      this.comboMilestone++;
+      this.emitPopup(next[1], 'combo');
+      this.waves.spawn((this.sim.laneX - 1) * LANE_W, 1.2, 0, 0xffc35a, 3.5, 0.5);
+      audio.sfx('combo', 12);
+      tg.haptic('medium');
+    } else if (this.comboMilestone > 0 && this.sim.combo < GameEngine.MILESTONES[this.comboMilestone - 1][0] * 0.5) {
+      this.comboMilestone = Math.max(0, this.comboMilestone - 1);
+    }
     const rz = this.sim.z;
     const runnerX = (this.sim.laneX - 1) * LANE_W;
     for (const ev of this.sim.events) {
@@ -522,6 +541,7 @@ export class GameEngine {
           this.hitStop = 0;
           break;
         case 'finishStart':
+          this.emitPopup('ФИНИШ!', 'ult');
           this.finishPortal.visible = true;
           this.speedPass?.kick('finish');
           this.world.hideBoss();
