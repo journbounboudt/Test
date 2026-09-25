@@ -376,7 +376,7 @@ async function render(shot: Shot) {
     const composer = new EffectComposer(renderer);
     composer.setSize(shot.w, shot.h);
     composer.addPass(new RenderPass(scene, cam));
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(shot.w, shot.h), shot.bloom ?? 0.8, 0.5, 0.72));
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(shot.w, shot.h), shot.bloom ?? 0.75, 0.45, 0.9));
     composer.addPass(new OutputPass());
     composer.render();
   }

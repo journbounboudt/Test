@@ -205,7 +205,7 @@ export class GameEngine {
     if (!this.q.bloom) return;
     const composer = new EffectComposer(this.renderer);
     composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), this.q.tier === 'high' ? 0.8 : 0.65, 0.5, 0.72);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), this.q.tier === 'high' ? 0.8 : 0.65, 0.45, 0.88);
     composer.addPass(this.bloom);
     this.speedPass = new SpeedPass(this.q.tier === 'high' ? 10 : 6);
     composer.addPass(this.speedPass.asPass);

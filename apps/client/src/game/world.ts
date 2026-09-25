@@ -80,7 +80,7 @@ interface Loop {
 export class World {
   readonly group = new THREE.Group();
   readonly palette: Palette;
-  private readonly floorMat: THREE.MeshStandardMaterial;
+  private readonly floorMat: THREE.MeshLambertMaterial;
   private readonly loops: Loop[] = [];
   private readonly portal = new THREE.Group();
   private readonly portalMat: THREE.ShaderMaterial;
@@ -121,7 +121,8 @@ export class World {
     const floorE = floorEmissive(theme, P.line, P.edge).clone();
     floorE.repeat.set(1, VIEW_LEN / 8);
     floorE.needsUpdate = true;
-    this.floorMat = new THREE.MeshStandardMaterial({ map: floorTex, emissiveMap: floorE, emissive: 0xffffff, emissiveIntensity: 1.0, metalness: 0.55, roughness: 0.5, envMapIntensity: 0.35 });
+    // Lambert on purpose: front-facing rim lights must not paint a specular sheen across the whole track.
+    this.floorMat = new THREE.MeshLambertMaterial({ map: floorTex, emissiveMap: floorE, emissive: 0xffffff, emissiveIntensity: 1.15 });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(TRACK_W * 1.25, VIEW_LEN), this.floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.z = NEAR - VIEW_LEN / 2;
@@ -214,12 +215,12 @@ export class World {
       this.rings.push(ring);
       this.portal.add(ring);
     }
-    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: P.accent2, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: P.accent2, transparent: true, opacity: 0.38, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     halo.scale.set(150, 150, 1);
     this.portal.add(halo);
     const nebTex = nebulaTexture();
     for (let i = 0; i < 5; i++) {
-      const neb = new THREE.Sprite(new THREE.SpriteMaterial({ map: nebTex, color: i % 2 ? P.accent2 : P.accent, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+      const neb = new THREE.Sprite(new THREE.SpriteMaterial({ map: nebTex, color: i % 2 ? P.accent2 : P.accent, transparent: true, opacity: i % 2 ? 0.26 : 0.14, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
       neb.position.set((r() - 0.5) * 260, (r() - 0.3) * 120, -30 - r() * 40);
       neb.scale.setScalar(160 + r() * 140);
       neb.material.rotation = r() * 6;
