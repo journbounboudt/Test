@@ -46,7 +46,7 @@ export type EngineEvent =
   | { type: 'checkpoint'; index: number; options: BoostId[] }
   | { type: 'down' }
   | { type: 'done'; summary: RunSummary; inputs: InputRecord[] }
-  | { type: 'popup'; text: string; kind: 'near' | 'combo' | 'shield' | 'boost' | 'smash' | 'soft' | 'ult' | 'shard' }
+  | { type: 'popup'; text: string; kind: 'near' | 'combo' | 'shield' | 'ult' | 'record' }
   | { type: 'hint'; hint: string }
   | { type: 'flash'; kind: 'hit' | 'soft' | 'revive' | 'ult' | 'finish' | 'shield' | 'pad' }
   | { type: 'climax'; name: string }
@@ -392,11 +392,10 @@ export class GameEngine {
 
   private comboMilestone = 0;
   private static readonly MILESTONES: [number, string][] = [
-    [25, 'В ПОТОКЕ!'],
-    [50, 'ОГОНЬ!'],
-    [100, 'НЕУДЕРЖИМ!'],
-    [150, 'ЛЕГЕНДА ПУСТОТЫ!'],
-    [250, 'БОГ СКОРОСТИ!'],
+    [30, 'В потоке'],
+    [75, 'Огонь!'],
+    [150, 'Неудержим!'],
+    [300, 'Легенда!'],
   ];
 
   private handleEvents() {
@@ -420,7 +419,6 @@ export class GameEngine {
           this.speedPass?.kick('pad');
           this.waves.spawn(runnerX, 0.05, 0, 0x35d7ff, 3.2, 0.45, true);
           this.particles.emit(runnerX, 0.2, -0.5, 18, 0x7fe6ff, { speed: 5, life: 0.4, size: 0.3, gravity: 0, vz: 10, anchored: false });
-          this.emitPopup('УСКОРЕНИЕ!', 'boost');
           audio.sfx('pad');
           tg.haptic('light');
           break;
@@ -439,8 +437,6 @@ export class GameEngine {
           if (ev.kind !== 'shard') this.waves.spawn(p.x, p.y, p.z, color, 1.6, 0.35, false, true);
           this.views.addFlying(ev.kind as 'shard', ev.lane, ev.z, rz);
           audio.sfx('pickup');
-          if (ev.kind === 'charge') this.emitPopup('+ЗАРЯД', 'ult');
-          if (ev.kind === 'credit') this.emitPopup('+КРЕДИТЫ', 'shard');
           break;
         }
         case 'near':
@@ -454,7 +450,6 @@ export class GameEngine {
         case 'soft':
           this.shake = Math.max(this.shake, 0.35);
           this.opts.onEvent({ type: 'flash', kind: 'soft' });
-          this.emitPopup('КОМБО ↓', 'soft');
           this.particles.emit(runnerX, 0.8, -1, 16, 0xff8a4a, { speed: 4, life: 0.5, size: 0.3 });
           audio.sfx('soft');
           tg.haptic('medium');
@@ -472,7 +467,7 @@ export class GameEngine {
         case 'block':
           if (ev.by !== 'invuln') {
             this.opts.onEvent({ type: 'flash', kind: 'shield' });
-            this.emitPopup('ЩИТ!', 'shield');
+            this.emitPopup('Щит сработал', 'shield');
             this.fields.shieldHit();
             this.speedPass?.kick('shield');
             this.slowmo = 0.2;
@@ -501,7 +496,6 @@ export class GameEngine {
           this.opts.onEvent({ type: 'checkpoint', index: ev.index, options: ev.options });
           break;
         case 'boost':
-          this.emitPopup(this.opts.config.boosts[ev.id].name.toUpperCase(), 'boost');
           audio.sfx('upgrade');
           break;
         case 'gadget':
@@ -511,7 +505,7 @@ export class GameEngine {
             this.waves.spawn(runnerX, 0.05, 0, 0xffc35a, 6, 0.6, true);
             this.particles.emitRing(runnerX, 1.1, 0, 3, 40, 0xffc35a, -9, 0.4);
             this.opts.onEvent({ type: 'flash', kind: 'ult' });
-            this.emitPopup('ПРОРЫВ ВОЙДА!', 'ult');
+            this.emitPopup('Прорыв!', 'ult');
             this.shake = Math.max(this.shake, 0.5);
             audio.sfx('ult');
             tg.haptic('heavy');
@@ -522,12 +516,10 @@ export class GameEngine {
           }
           break;
         case 'ultReady':
-          this.emitPopup('ПРОРЫВ ГОТОВ', 'ult');
           tg.haptic('success');
           break;
         case 'combo':
           if (ev.mult > 1) {
-            this.emitPopup(`МНОЖИТЕЛЬ x${ev.mult}`, 'combo');
             audio.sfx('combo', ev.mult);
           }
           break;
@@ -541,7 +533,7 @@ export class GameEngine {
           this.hitStop = 0;
           break;
         case 'finishStart':
-          this.emitPopup('ФИНИШ!', 'ult');
+          this.emitPopup('Финиш!', 'ult');
           this.finishPortal.visible = true;
           this.speedPass?.kick('finish');
           this.world.hideBoss();
@@ -583,8 +575,9 @@ export class GameEngine {
     this.padFx = Math.max(0, this.padFx - dt * 1.2);
     if ((sim.magnetActive || ultActive) && dt > 0 && Math.random() < 0.7) this.particles.emitRing(runnerX, 1.1, -0.5, 2.4, 2, ultActive ? 0xffc35a : 0xc07bff, 7, 0.3);
     this.world.updateBoss(this.time, dt, sim, this.renderZ);
-    this.trail.mesh.visible = this.mode === 'run' && sim.phase !== 'down';
-    this.trail.update(this.renderZ, runnerX, ultActive ? 0.34 : 0.12, 0.12);
+    // Seen from behind, a floor ribbon reads as a plank running to the camera; only show a short one during the Ultimate.
+    this.trail.mesh.visible = ultActive && this.mode === 'run';
+    this.trail.update(this.renderZ, runnerX, 0.22, 0.06);
     this.fields.update(dt, this.time, {
       shield: sim.shieldActive ? 1 : 0,
       boostShield: sim.boostShields > 0,

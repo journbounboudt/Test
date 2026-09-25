@@ -269,16 +269,16 @@ export class World {
       [['GOOD', 'RUNS', 'BETTER', 'YOU'], '#b58cff'],
       [['60', 'СЕКУНД', 'ДО', 'ЛЕГЕНДЫ'], '#ffb45a'],
     ];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 4; i++) {
       const [lines, color] = slogans[i % slogans.length];
       const tex = billboardTexture(lines, color);
-      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.92, color: new THREE.Color(1.5, 1.5, 1.5), side: THREE.DoubleSide, depthWrite: false });
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.92, color: new THREE.Color(1.1, 1.1, 1.1), side: THREE.DoubleSide, depthWrite: false });
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 4.8), mat);
       const side = i % 2 ? 1 : -1;
       mesh.rotation.y = -side * 0.55;
       mesh.frustumCulled = false;
       this.group.add(mesh);
-      this.boards.push({ mesh, z: 30 + i * (VIEW_LEN / 6), x: side * (TRACK_W / 2 + 3.4), y: 2.6 + r() * 1.5, side });
+      this.boards.push({ mesh, z: 40 + i * (VIEW_LEN / 4), x: side * (TRACK_W / 2 + 4.6), y: 2.6 + r() * 1.5, side });
     }
   }
 
@@ -369,7 +369,7 @@ export class World {
   update(renderZ: number, dt: number, time: number, boost: number) {
     for (const b of this.boards) {
       b.mesh.position.set(b.x, b.y + Math.sin(time * 0.8 + b.z) * 0.12, wrapZ(b.z, renderZ));
-      (b.mesh.material as THREE.MeshBasicMaterial).opacity = 0.78 + Math.sin(time * 9 + b.z) * 0.06 + (Math.sin(time * 37 + b.z) > 0.97 ? -0.4 : 0);
+      (b.mesh.material as THREE.MeshBasicMaterial).opacity = 0.55 + Math.sin(time * 9 + b.z) * 0.04;
     }
     const tex = this.floorMat.map!;
     tex.offset.y = renderZ / 8;

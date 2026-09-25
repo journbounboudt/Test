@@ -83,6 +83,8 @@ export interface BoostDef {
   id: BoostId;
   name: string;
   description: string;
+  /** 1–3 word effect shown on checkpoint cards. */
+  short?: string;
   durationSec?: number;
   value: number;
 }
@@ -445,12 +447,12 @@ export const DEFAULT_CONFIG: RemoteConfig = {
     },
   },
   boosts: {
-    speed: { id: 'speed', name: 'Скорость', description: '+12% скорости и +25% очков на 12 с', durationSec: 12, value: 0.12 },
-    magnet: { id: 'magnet', name: 'Магнит', description: 'Радиус сбора ×1.8 до конца забега', value: 1.8 },
-    shield: { id: 'shield', name: 'Щит', description: 'Выдерживает один тяжёлый удар', value: 1 },
-    combo: { id: 'combo', name: 'Комбо', description: 'Комбо растёт ×2 и держится дольше', value: 2 },
-    luck: { id: 'luck', name: 'Удача', description: '+15% к наградам после забега', value: 0.15 },
-    breakthrough: { id: 'breakthrough', name: 'Прорыв', description: 'Ультимейт заряжается на 50% быстрее', value: 0.5 },
+    speed: { id: 'speed', name: 'Скорость', short: '+12% · 12 с', description: '+12% скорости и +25% очков на 12 с', durationSec: 12, value: 0.12 },
+    magnet: { id: 'magnet', name: 'Магнит', short: 'Радиус ×1.8', description: 'Радиус сбора ×1.8 до конца забега', value: 1.8 },
+    shield: { id: 'shield', name: 'Щит', short: 'Держит 1 удар', description: 'Выдерживает один тяжёлый удар', value: 1 },
+    combo: { id: 'combo', name: 'Комбо', short: 'Комбо ×2', description: 'Комбо растёт ×2 и держится дольше', value: 2 },
+    luck: { id: 'luck', name: 'Удача', short: '+15% наград', description: '+15% к наградам после забега', value: 0.15 },
+    breakthrough: { id: 'breakthrough', name: 'Прорыв', short: 'Заряд +50%', description: 'Ультимейт заряжается на 50% быстрее', value: 0.5 },
   },
   gear: {
     suit: gearSlot('suit', 'Костюм', 'Эффективность наград и устойчивость к мелким ударам'),

@@ -375,8 +375,12 @@ export class EntityViews {
         holo.scale.set(half * 2, 4, 1);
         holo.position.set(0, 2.1, 0);
         base.update = (e, ctx) => {
-          obj.position.set(0, 0, -(e.z - ctx.renderZ));
-          (M.cpHolo as THREE.MeshBasicMaterial).opacity = 0.2 + Math.sin(ctx.time * 4) * 0.08;
+          const dist = e.z - ctx.renderZ;
+          obj.position.set(0, 0, -dist);
+          // Once the Runner is through, the gate sits between him and the camera: hide it.
+          obj.visible = dist > 2.5;
+          const near = THREE.MathUtils.clamp((dist - 2.5) / 10, 0, 1);
+          (M.cpHolo as THREE.MeshBasicMaterial).opacity = (0.16 + Math.sin(ctx.time * 4) * 0.05) * near;
         };
         break;
       }

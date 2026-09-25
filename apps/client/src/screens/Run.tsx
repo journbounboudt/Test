@@ -1,4 +1,4 @@
-import { Flag, Hand, Pause, Play, RotateCcw, LogOut, Skull, Timer, Volume2, VolumeX, Music } from 'lucide-react';
+import { Hand, Pause, Play, RotateCcw, LogOut, Timer, Volume2, VolumeX, Music, Zap } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { skinById, type BoostId, type InputRecord, type RunSummary } from '@void-rush/shared';
 import { ApiError } from '../api/client';
@@ -7,8 +7,8 @@ import type { EngineEvent, GameEngine, HudState } from '../game/engine';
 import { tg } from '../platform/telegram';
 import { buyRevive, saveSettings, startRun, submitRun } from '../state/actions';
 import { useStore } from '../state/store';
-import { Btn, Logo, click } from '../ui/common';
-import { BoostIcon, CurrencyIcon, MagnetIcon, ReviveIcon, Shard, ShieldIcon, StarIcon } from '../ui/icons';
+import { Btn, click } from '../ui/common';
+import { BoostIcon, CurrencyIcon, MagnetIcon, ReviveIcon, ShieldIcon, StarIcon, Target } from '../ui/icons';
 import { clock, fmt } from '../ui/format';
 
 type Overlay = null | 'checkpoint' | 'down' | 'pause' | 'submitting' | 'error' | 'loading';
@@ -19,17 +19,17 @@ interface Popup {
 }
 
 const HINTS: Record<string, string> = {
-  swipe: 'Свайпни влево или вправо, чтобы сменить полосу',
-  shards: 'Собирай осколки — они дают очки и комбо',
-  charge: 'Голубые заряды наполняют ПРОРЫВ ВОЙДА — жми большую кнопку!',
-  gadget: 'Впереди ворота — нажми ЩИТ, чтобы пройти сквозь удар',
+  swipe: 'Свайп — сменить полосу',
+  shards: 'Собирай осколки',
+  charge: 'Заряды копят Прорыв — жми центр',
+  gadget: 'Жми Щит — пройдёшь сквозь ворота',
 };
 
 const BOOST_ICON: Record<BoostId, (p: { size?: number }) => React.ReactElement> = {
   speed: BoostIcon,
   magnet: MagnetIcon,
   shield: ShieldIcon,
-  combo: (p) => <CurrencyIcon kind="xp" size={p.size} />,
+  combo: Target,
   luck: StarIcon,
   breakthrough: (p) => <CurrencyIcon kind="module" size={p.size} />,
 };
@@ -58,10 +58,16 @@ export function RunScreen() {
   const after = useRef<'results' | 'home' | 'restart'>('results');
   const route = run ? config.routes[run.routeId] : null;
 
+  const [nearMiss, setNearMiss] = useState(0);
+  const recordShown = useRef(false);
   const addPopup = useCallback((text: string, kind: string) => {
+    if (kind === 'near') {
+      setNearMiss(popupId++);
+      return;
+    }
     const id = popupId++;
-    setPopups((p) => [...p.slice(-3), { id, text, kind }]);
-    setTimeout(() => setPopups((p) => p.filter((x) => x.id !== id)), 900);
+    setPopups([{ id, text, kind }]);
+    setTimeout(() => setPopups((p) => p.filter((x) => x.id !== id)), 1100);
   }, []);
 
   const finish = useCallback(async () => {
@@ -196,6 +202,16 @@ export function RunScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overlay, options]);
 
+  // One-time "new record" callout when the live score passes the route best.
+  useEffect(() => {
+    if (!hud || !run || recordShown.current) return;
+    const best = profile.stats.routeBest[run.routeId]?.score ?? 0;
+    if (best > 0 && hud.score > best) {
+      recordShown.current = true;
+      addPopup('Новый рекорд!', 'record');
+    }
+  }, [hud, run, profile.stats.routeBest, addPopup]);
+
   if (!run || !route) return null;
 
   const engine = () => engineRef.current;
@@ -242,131 +258,127 @@ export function RunScreen() {
     engine()?.queue('end');
   };
 
-  const best = profile.stats.routeBest[run.routeId]?.distance ?? profile.stats.bestDistance;
-  // Controls reminder only for the first couple of real runs; veterans never see it.
-  const showControlsHint = run.routeId !== 'tutorial' && profile.stats.runs < 2;
-  const ultPct = hud ? (hud.ultActive > 0 ? hud.ultActive : hud.ult) : 0;
-  const canRevive = !hud || true;
+  // Labels and control hints only while the player is still learning; veterans get a clean screen.
+  const learning = run.routeId === 'tutorial' || profile.stats.runs < 2;
   const hasToken = profile.balances.reviveTokens >= config.revive.tokenCost;
   const hasStars = profile.balances.stars >= config.revive.starsCost;
+  const reviveMethod: 'token' | 'stars' = hasToken ? 'token' : 'stars';
+  const step = config.sim.comboStep;
+  const mult = hud?.mult ?? 1;
+  const multProgress = mult >= config.sim.comboMultCap ? 1 : ((hud?.combo ?? 0) % step) / step;
+  const ultFill = hud ? (hud.ultActive > 0 ? hud.ultActive : hud.ult) : 0;
+  const timeLeft = hud?.time ?? route.durationSec;
 
   return (
     <div className="run-root" ref={hostRef}>
       <div className="hud">
-        <div className="run-progress" aria-hidden>
-          <i className="fill" style={{ width: `${(hud?.progress ?? 0) * 100}%` }} />
-          {hud?.checkpoints.map((c) => <b key={c} className={`cp ${(hud?.progress ?? 0) >= c ? 'done' : ''}`} style={{ left: `${c * 100}%` }} />)}
-          {hud?.climax != null && <span className="boss-zone" style={{ left: `${hud.climax * 100}%` }}><Skull size={10} /></span>}
-          <span className="finish-flag"><Flag size={11} /></span>
-        </div>
-        <div className="hud-top">
-          <div className="hud-left">
-            <div className="row" style={{ gap: 8 }}>
-              <button className="hud-pause" onPointerDown={(e) => e.stopPropagation()} onClick={pause} aria-label="Пауза">
-                <Pause size={22} fill="currentColor" />
-              </button>
-              <Logo size={24} />
+        <header className="hud-head">
+          <div className="hud-row">
+            <button className="hud-pause" onPointerDown={(e) => e.stopPropagation()} onClick={pause} aria-label="Пауза">
+              <Pause size={20} fill="currentColor" />
+            </button>
+            <div className="hud-score">
+              <b className="num">{fmt(hud?.score ?? 0)}</b>
+              <span className="num">{fmt(hud?.distance ?? 0)} м</span>
             </div>
-            <div className="hud-panel">
-              <div className="hud-label">Расстояние</div>
-              <div className="hud-big num">{fmt(hud?.distance ?? 0)} м</div>
-              {best > 0 && <div className="hud-small">Лучший: {fmt(best)} м</div>}
-              <div className="hud-label" style={{ marginTop: 6 }}>
-                Счёт
-              </div>
-              <div className="hud-big num row" style={{ gap: 6 }}>
-                {fmt(hud?.score ?? 0)} <Shard size={20} />
-              </div>
+            <div className={`hud-timer ${timeLeft <= 10 && hud?.phase === 'run' ? 'hot' : ''}`}>
+              <Timer size={16} />
+              <b className="num">{clock(timeLeft)}</b>
             </div>
           </div>
-          <div className="hud-right">
-            <div className="hud-panel hud-time">
-              <Timer size={26} className="timer-ico" />
-              <div>
-                <div className="hud-label">Время</div>
-                <div className={`hud-big num ${hud && hud.time <= 10 ? 'hot' : ''}`}>{clock(hud?.time ?? route.durationSec)}</div>
-              </div>
-            </div>
-            <div className={`hud-combo m${hud?.mult ?? 1} ${hud && hud.mult > 1 ? 'on' : ''}`} key={`m${hud?.mult ?? 1}`}>
-              <div className="hud-label gold-text">Комбо</div>
-              <div className="combo-val num">x{hud?.combo ?? 0}</div>
-              <div className="combo-gain num">{hud && hud.gain > 0 ? <>+{fmt(hud.gain)} <Shard size={13} /></> : <>множитель x{hud?.mult ?? 1}</>}</div>
-            </div>
-            {(hud?.boostShields ?? 0) > 0 && (
-              <div className="hud-chip">
-                <ShieldIcon size={14} /> щит ×{hud?.boostShields}
-              </div>
-            )}
-            {hud?.speedBoost && (
-              <div className="hud-chip gold">
-                <BoostIcon size={14} /> скорость
-              </div>
-            )}
-            {hud?.pad && <div className="hud-chip cyan">⟫ рывок</div>}
+          <div className="run-progress" aria-hidden>
+            <i className="fill" style={{ width: `${(hud?.progress ?? 0) * 100}%` }} />
+            {hud?.checkpoints.map((c) => <b key={c} className={`cp ${(hud?.progress ?? 0) >= c ? 'done' : ''}`} style={{ left: `${c * 100}%` }} />)}
+            {hud?.climax != null && <span className="boss-zone" style={{ left: `${hud.climax * 100}%` }} />}
           </div>
-        </div>
+          <div className="hud-sub">
+            <div className="hud-status">
+              {(hud?.boostShields ?? 0) > 0 && (
+                <span className="status-ico cyan" title="Щит из буста">
+                  <ShieldIcon size={15} />
+                </span>
+              )}
+              {hud?.speedBoost && (
+                <span className="status-ico gold" title="Скорость">
+                  <BoostIcon size={15} />
+                </span>
+              )}
+            </div>
+            {(hud?.combo ?? 0) > 0 && (
+              <div className={`hud-mult m${mult}`} key={`m${mult}`}>
+                <b className="num">×{mult}</b>
+                <div className="mult-meta">
+                  <span className="num">{hud?.combo}</span>
+                  <i style={{ ['--p' as string]: multProgress }} />
+                </div>
+              </div>
+            )}
+          </div>
+        </header>
 
-        <div className="popups">
-          {popups.map((p) => (
-            <div key={p.id} className={`popup ${p.kind}`}>
-              {p.text}
-            </div>
-          ))}
-        </div>
+        {popups.length > 0 && (
+          <div className="callout-slot">
+            {popups.slice(-1).map((p) => (
+              <div key={p.id} className={`callout ${p.kind}`}>
+                {p.text}
+              </div>
+            ))}
+          </div>
+        )}
+        {nearMiss > 0 && (
+          <div className="near-slot" key={nearMiss}>
+            впритык
+          </div>
+        )}
 
         {count !== null && <div className="countdown" key={count}>{count === 0 ? 'GO!' : count}</div>}
         {bossName && (
           <div className="boss-banner">
-            <span className="boss-kicker">⚠ Мини-босс</span>
+            <span className="boss-kicker">Мини-босс</span>
             <b>{bossName}</b>
-            <span className="boss-sub">Уворачивайся от обломков!</span>
           </div>
         )}
         {hud?.climaxActive && !bossName && <div className="boss-edge" />}
 
-        <div className="hud-bottom">
-          {(hint || (hud?.phase === 'countdown' && showControlsHint)) && (
+        <footer className="hud-foot">
+          {(hint || (hud?.phase === 'countdown' && learning)) && (
             <div className="swipe-hint">
-              <span>‹</span>
-              <Hand size={18} className="hint-hand" />
-              {hint ?? 'Свайп для уклонения'}
-              <span>›</span>
+              <Hand size={16} className="hint-hand" />
+              {hint ?? 'Свайпай влево и вправо'}
             </div>
           )}
-          <div className="gadgets">
-            <button className={`gadget shield ${hud && hud.shieldActive > 0 ? 'active' : ''}`} disabled={!hud || (hud.shieldCharges <= 0 && hud.shieldActive <= 0)} onPointerDown={press('shield')}>
+          <div className={`gadgets ${learning ? 'labeled' : ''}`}>
+            <button className={`gadget shield ${hud && hud.shieldActive > 0 ? 'active' : ''}`} disabled={!hud || (hud.shieldCharges <= 0 && hud.shieldActive <= 0)} onPointerDown={press('shield')} aria-label="Щит">
               <div className="hex">
-                <ShieldIcon size={34} />
-                <span className="count">{hud?.shieldCharges ?? 0}</span>
+                <ShieldIcon size={28} />
                 {hud && hud.shieldActive > 0 && <i className="ring" style={{ ['--p' as string]: hud.shieldActive }} />}
               </div>
-              <b>Щит</b>
-              <span>Защищает 1 удар</span>
+              <span className="count num">{hud?.shieldCharges ?? 0}</span>
+              {learning && <em>Щит</em>}
             </button>
-            <button className={`gadget ult ${hud && hud.ult >= 1 ? 'ready' : ''} ${hud && hud.ultActive > 0 ? 'active' : ''}`} disabled={!hud || (hud.ult < 1 && hud.ultActive <= 0)} onPointerDown={press('ult')}>
+            <button
+              className={`gadget ult ${hud && hud.ult >= 1 ? 'ready' : ''} ${hud && hud.ultActive > 0 ? 'active' : ''}`}
+              disabled={!hud || (hud.ult < 1 && hud.ultActive <= 0)}
+              onPointerDown={press('ult')}
+              aria-label="Прорыв"
+              style={{ ['--c' as string]: ultFill }}
+            >
               <div className="hex big">
-                <BoostIcon size={46} />
-                {hud && hud.ultActive > 0 && <i className="ring" style={{ ['--p' as string]: hud.ultActive }} />}
+                <i className="charge" />
+                <BoostIcon size={40} />
               </div>
-              <b>Ускорение</b>
-              <span>Прорыв войда</span>
-              <div className="ult-bar">
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <i key={i} className={ultPct * 5 > i ? 'on' : ''} />
-                ))}
-              </div>
+              {learning && <em>Прорыв</em>}
             </button>
-            <button className={`gadget magnet ${hud && hud.magnetActive > 0 ? 'active' : ''}`} disabled={!hud || (hud.magnetCharges <= 0 && hud.magnetActive <= 0)} onPointerDown={press('magnet')}>
+            <button className={`gadget magnet ${hud && hud.magnetActive > 0 ? 'active' : ''}`} disabled={!hud || (hud.magnetCharges <= 0 && hud.magnetActive <= 0)} onPointerDown={press('magnet')} aria-label="Магнит">
               <div className="hex">
-                <MagnetIcon size={34} />
-                <span className="count">{hud?.magnetCharges ?? 0}</span>
+                <MagnetIcon size={28} />
                 {hud && hud.magnetActive > 0 && <i className="ring" style={{ ['--p' as string]: hud.magnetActive }} />}
               </div>
-              <b>Магнит</b>
-              <span>Притягивает осколки</span>
+              <span className="count num">{hud?.magnetCharges ?? 0}</span>
+              {learning && <em>Магнит</em>}
             </button>
           </div>
-        </div>
+        </footer>
       </div>
 
       {flash && <div key={flash.id} className={`flash-layer ${flash.kind}`} />}
@@ -374,17 +386,14 @@ export function RunScreen() {
       {overlay === 'loading' && (
         <div className="run-overlay">
           <div className="spinner" style={{ width: 40, height: 40 }} />
-          <div className="sub mt">Открываем портал…</div>
         </div>
       )}
 
       {overlay === 'checkpoint' && (
         <div className="run-overlay checkpoint" onPointerDown={(e) => e.stopPropagation()}>
-          <div className="kicker">Чекпоинт</div>
-          <h2 className="h-display" style={{ fontSize: 28 }}>
+          <h2 className="h-display" style={{ fontSize: 26 }}>
             Выбери буст
           </h2>
-          {run.routeId === 'tutorial' && <div className="sub center">Бусты действуют только в этом забеге</div>}
           <div className="cp-timer">
             <i />
           </div>
@@ -393,9 +402,9 @@ export function RunScreen() {
               const Icon = BOOST_ICON[id];
               return (
                 <button key={id} className={`boost-card ${BOOST_TONE[id]}`} onClick={() => pickBoost(id)}>
-                  <Icon size={40} />
+                  <Icon size={44} />
                   <b>{config.boosts[id].name}</b>
-                  <span>{config.boosts[id].description}</span>
+                  <span>{config.boosts[id].short ?? ''}</span>
                 </button>
               );
             })}
@@ -405,26 +414,24 @@ export function RunScreen() {
 
       {overlay === 'down' && (
         <div className="run-overlay down" onPointerDown={(e) => e.stopPropagation()}>
-          <h2 className="h-display red" style={{ fontSize: 30 }}>
-            Столкновение!
-          </h2>
           <div className="revive-timer" style={{ ['--p' as string]: reviveLeft / 6 }}>
             <span>{reviveLeft}</span>
           </div>
-          {canRevive && (
-            <div className="col" style={{ width: '100%', maxWidth: 320 }}>
-              <Btn variant="violet" block loading={reviveBusy} disabled={!hasToken} onClick={() => void revive('token')}>
-                <ReviveIcon size={20} /> Возродиться · {config.revive.tokenCost} жетон (есть {profile.balances.reviveTokens})
-              </Btn>
-              <Btn variant="gold" block loading={reviveBusy} disabled={!hasStars} onClick={() => void revive('stars')}>
-                <StarIcon size={18} /> Возродиться за {config.revive.starsCost}
-              </Btn>
-              <Btn variant="ghost" block onClick={declineRevive}>
-                Завершить забег
-              </Btn>
-              <div className="sub center">Одно возрождение за забег · 2.5 с неуязвимости</div>
-            </div>
-          )}
+          <h2 className="h-display red" style={{ fontSize: 28 }}>
+            Продолжить?
+          </h2>
+          <div className="col" style={{ width: '100%', maxWidth: 280, marginTop: 8 }}>
+            <Btn variant={reviveMethod === 'token' ? 'violet' : 'gold'} block loading={reviveBusy} disabled={!hasToken && !hasStars} onClick={() => void revive(reviveMethod)}>
+              Возродиться
+              <span className="cost-chip">
+                {reviveMethod === 'token' ? <ReviveIcon size={16} /> : <StarIcon size={15} />}
+                {reviveMethod === 'token' ? config.revive.tokenCost : config.revive.starsCost}
+              </span>
+            </Btn>
+            <Btn variant="ghost" block onClick={declineRevive}>
+              Завершить
+            </Btn>
+          </div>
         </div>
       )}
 
@@ -433,27 +440,30 @@ export function RunScreen() {
           <h2 className="h-display" style={{ fontSize: 34 }}>
             Пауза
           </h2>
-          <div className="col" style={{ width: '100%', maxWidth: 300, marginTop: 16 }}>
+          <div className="col" style={{ width: '100%', maxWidth: 280, marginTop: 16 }}>
             <Btn variant="cyan" block onClick={resume}>
               <Play size={18} fill="currentColor" /> Продолжить
             </Btn>
             {route.energyCost > 0 && run.routeId !== 'tutorial' && (
               <Btn block onClick={() => quit('restart')}>
-                <RotateCcw size={18} /> Перезапустить · {route.energyCost} энергии
+                <RotateCcw size={18} /> Заново
+                <span className="cost-chip">
+                  <Zap size={14} fill="currentColor" />
+                  {route.energyCost}
+                </span>
               </Btn>
             )}
             <Btn variant="ghost" block onClick={() => quit('home')}>
               <LogOut size={18} /> Выйти
             </Btn>
-            <div className="row" style={{ justifyContent: 'center', gap: 10, marginTop: 8 }}>
-              <Btn size="sm" variant="ghost" onClick={() => void saveSettings({ music: !profile.settings.music })}>
-                <Music size={16} /> {profile.settings.music ? 'Музыка вкл' : 'Музыка выкл'}
-              </Btn>
-              <Btn size="sm" variant="ghost" onClick={() => void saveSettings({ sfx: !profile.settings.sfx })}>
-                {profile.settings.sfx ? <Volume2 size={16} /> : <VolumeX size={16} />} {profile.settings.sfx ? 'Звуки вкл' : 'Звуки выкл'}
-              </Btn>
+            <div className="row pause-toggles">
+              <button className={`icon-btn ${profile.settings.music ? '' : 'off'}`} onClick={() => void saveSettings({ music: !profile.settings.music })} aria-label="Музыка">
+                <Music size={18} />
+              </button>
+              <button className={`icon-btn ${profile.settings.sfx ? '' : 'off'}`} onClick={() => void saveSettings({ sfx: !profile.settings.sfx })} aria-label="Звуки">
+                {profile.settings.sfx ? <Volume2 size={18} /> : <VolumeX size={18} />}
+              </button>
             </div>
-            <div className="sub center">Таймер забега остановлен</div>
           </div>
         </div>
       )}
