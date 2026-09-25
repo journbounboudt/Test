@@ -472,3 +472,250 @@
   margin: 6px 0 10px;
 }
 
+
+/* ───────── HUD v2 (reference pass) ───────── */
+.run-progress {
+  position: relative;
+  height: 5px;
+  margin: 0 58px 8px;
+  border-radius: 3px;
+  background: rgba(10, 20, 44, 0.75);
+  border: 1px solid rgba(90, 160, 255, 0.35);
+}
+.run-progress .fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #2a7bff, #35d7ff);
+  box-shadow: 0 0 8px rgba(53, 215, 255, 0.9);
+}
+.run-progress .cp {
+  position: absolute;
+  top: -3px;
+  width: 3px;
+  height: 11px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: rgba(160, 190, 240, 0.5);
+}
+.run-progress .cp.done {
+  background: #9ff0ff;
+  box-shadow: 0 0 6px #35d7ff;
+}
+.run-progress .boss-zone {
+  position: absolute;
+  top: -8px;
+  right: 0;
+  height: 21px;
+  display: flex;
+  align-items: center;
+  padding-left: 3px;
+  color: #ff6a7a;
+  border-left: 2px solid rgba(255, 70, 90, 0.8);
+  background: linear-gradient(90deg, rgba(255, 50, 70, 0.28), transparent);
+}
+.run-progress .finish-flag {
+  position: absolute;
+  right: -16px;
+  top: -8px;
+  color: #ffd66b;
+  filter: drop-shadow(0 0 4px #ffb02e);
+}
+.hud-panel {
+  position: relative;
+  background: linear-gradient(180deg, rgba(10, 20, 50, 0.78), rgba(5, 10, 28, 0.62));
+  border: 1px solid rgba(90, 170, 255, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 14px rgba(40, 120, 255, 0.18);
+}
+.hud-panel::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(53, 215, 255, 0.9), transparent);
+}
+.hud-time {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.timer-ico {
+  color: #9fdcff;
+  filter: drop-shadow(0 0 5px rgba(53, 215, 255, 0.8));
+}
+.hud-combo {
+  position: relative;
+  clip-path: polygon(10% 0, 100% 0, 100% 80%, 90% 100%, 0 100%, 0 20%);
+  animation: combo-bump 0.35s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+.hud-combo.m3,
+.hud-combo.m4 {
+  box-shadow: 0 0 26px rgba(255, 150, 30, 0.7);
+}
+.hud-combo.m5 {
+  border-color: #fff1b0;
+  box-shadow: 0 0 34px rgba(255, 190, 60, 0.95);
+  background: linear-gradient(180deg, rgba(110, 60, 8, 0.85), rgba(40, 20, 4, 0.7));
+}
+@keyframes combo-bump {
+  from {
+    transform: scale(1.25);
+  }
+}
+.combo-gain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 13px;
+  font-weight: 900;
+  color: #ffe6a0;
+  min-height: 17px;
+}
+.hud-chip.cyan {
+  background: rgba(6, 50, 80, 0.8);
+  border-color: rgba(53, 215, 255, 0.8);
+  color: #bff3ff;
+}
+.swipe-hint {
+  gap: 8px;
+  background: linear-gradient(180deg, rgba(10, 24, 60, 0.88), rgba(6, 12, 32, 0.82));
+}
+.hint-hand {
+  color: #dff3ff;
+  animation: hand-swipe 1.4s ease-in-out infinite;
+}
+@keyframes hand-swipe {
+  0%,
+  100% {
+    transform: translateX(-6px) rotate(-8deg);
+  }
+  50% {
+    transform: translateX(6px) rotate(8deg);
+  }
+}
+.boss-banner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 26%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 0;
+  background: linear-gradient(90deg, transparent, rgba(90, 6, 18, 0.85) 20%, rgba(90, 6, 18, 0.85) 80%, transparent);
+  border-top: 1px solid rgba(255, 70, 90, 0.7);
+  border-bottom: 1px solid rgba(255, 70, 90, 0.7);
+  animation: boss-in 2.6s ease-out forwards;
+}
+.boss-kicker {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #ff8a9a;
+  animation: pulse-text 0.5s infinite;
+}
+.boss-banner b {
+  font-size: 30px;
+  font-weight: 900;
+  font-style: italic;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(255, 60, 80, 0.9);
+}
+.boss-sub {
+  font-size: 12px;
+  color: #ffc2c8;
+  font-weight: 700;
+}
+@keyframes boss-in {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.2);
+  }
+  10% {
+    opacity: 1;
+    transform: none;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.boss-edge {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 60px rgba(255, 30, 50, 0.35);
+  animation: pulse-text 1.1s ease-in-out infinite;
+}
+.flash-layer.pad {
+  background: radial-gradient(circle at 50% 70%, transparent 35%, rgba(53, 215, 255, 0.35));
+}
+
+/* Gadget hexes: glowing bevel frame + dark core (reference) */
+.hex {
+  background: linear-gradient(180deg, #7fd8ff, #1f6fe0 55%, #0d3aa0);
+  filter: drop-shadow(0 0 10px rgba(53, 170, 255, 0.55));
+}
+.hex::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  background: radial-gradient(circle at 50% 30%, rgba(40, 110, 220, 0.9), rgba(6, 18, 52, 0.96) 70%);
+}
+.hex > svg {
+  position: relative;
+}
+.gadget.magnet .hex {
+  background: linear-gradient(180deg, #e0c2ff, #8a4dff 55%, #4a1fb0);
+  filter: drop-shadow(0 0 10px rgba(155, 92, 255, 0.55));
+}
+.gadget.magnet .hex::before {
+  background: radial-gradient(circle at 50% 30%, rgba(110, 50, 210, 0.9), rgba(24, 8, 56, 0.96) 70%);
+}
+.hex.big {
+  background: linear-gradient(180deg, #fff1b8, #ffb02e 45%, #d9660a);
+  filter: drop-shadow(0 0 14px rgba(255, 150, 30, 0.75));
+}
+.hex.big::before {
+  inset: 4px;
+  background: radial-gradient(circle at 50% 30%, #ffcf5a, #ff9a1f 55%, #b8520a);
+}
+.gadget.ult:disabled .hex.big::before {
+  background: radial-gradient(circle at 50% 30%, #6a5a3a, #3a2a14 70%);
+}
+.gadget.active .hex {
+  animation: gadget-active 0.5s ease-in-out infinite alternate;
+}
+@keyframes gadget-active {
+  to {
+    filter: drop-shadow(0 0 20px rgba(160, 230, 255, 1)) brightness(1.25);
+  }
+}
+.hex .ring {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: conic-gradient(rgba(255, 255, 255, 0.85) calc(var(--p) * 360deg), transparent 0);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%);
+  mask: radial-gradient(circle, transparent 62%, #000 64%);
+  pointer-events: none;
+}
+.gadget .count {
+  z-index: 1;
+  background: rgba(4, 10, 26, 0.9);
+  border-color: rgba(160, 210, 255, 0.8);
+}
+.gadgets {
+  padding: 8px 4px 2px;
+  border-radius: 18px 18px 0 0;
+  background: linear-gradient(180deg, transparent, rgba(4, 8, 22, 0.55) 40%);
+}

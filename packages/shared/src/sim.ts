@@ -24,6 +24,8 @@ export type SimEvent =
   | { type: 'hint'; hint: string }
   | { type: 'revive' }
   | { type: 'finishStart'; portalZ: number }
+  | { type: 'climax'; name: string }
+  | { type: 'pad' }
   | { type: 'done'; finished: boolean };
 
 export interface RunSetup {
@@ -125,6 +127,10 @@ export class RunSim {
   magnetUntil = 0;
   boostShields = 0;
   speedBoostUntil = 0;
+  padUntil = 0;
+  climaxTick = -1;
+  climaxStarted = false;
+  pads = 0;
   magnetBoost = false;
   comboBoost = false;
   breakthrough = false;
@@ -162,6 +168,7 @@ export class RunSim {
     this.revivesAllowed = setup.revivesAllowed;
     this.emitEvents = setup.emitEvents ?? false;
     this.durationTicks = Math.round(this.route.durationSec * TICK_RATE);
+    if (this.route.climax) this.climaxTick = Math.round((this.route.durationSec - this.route.climax.lastSec) * TICK_RATE);
     this.shieldCharges = this.mods.shieldCharges;
     this.magnetCharges = this.mods.magnetCharges;
     this.speed = this.stream.profile.speedAt(0) * this.mods.speedMult;
@@ -391,6 +398,7 @@ export class RunSim {
     const t = this.tick * DT;
     let mult = this.mods.speedMult;
     if (this.tick < this.speedBoostUntil) mult *= 1 + this.config.boosts.speed.value;
+    if (this.tick < this.padUntil) mult *= s.pad.speedMult;
     if (this.ultActive) mult *= this.mods.ultSpeedMult;
     if (this.softTicks > 0) {
       const total = s.softRecoverSec * TICK_RATE;
@@ -415,6 +423,10 @@ export class RunSim {
       if (this.comboMult !== before) this.emit({ type: 'combo', combo: this.combo, mult: this.comboMult });
     }
 
+    if (!this.climaxStarted && this.climaxTick >= 0 && this.tick >= this.climaxTick && this.phase === 'run') {
+      this.climaxStarted = true;
+      this.emit({ type: 'climax', name: this.route.climax?.name ?? '' });
+    }
     if (this.phase === 'run' && this.tick >= this.durationTicks) this.startFinish();
     else if (this.phase === 'finishing' && this.tick >= this.finishTick) this.finish(true);
 
@@ -467,6 +479,11 @@ export class RunSim {
         const dx = Math.abs(px - e.lane);
         let got = false;
         let viaMagnet = false;
+        if (e.kind === 'pad') {
+          if (e.z > this.prevZ - 0.8 && e.z <= this.z + 0.8 && dx <= 0.45) this.collect(e, false);
+          else if (e.z < this.prevZ - 1) e.state = 2;
+          continue;
+        }
         if (e.z > this.prevZ - 0.8 && e.z <= this.z + 0.8 && dx <= radius) got = true;
         else if (magnetOn && e.z > this.prevZ - 1 && e.z <= this.z + reach && dx <= s.magnet.lanes) {
           got = true;
@@ -537,7 +554,7 @@ export class RunSim {
 
   private blocksLane(e: Entity, lane: number): boolean {
     if (e.kind === 'mine') return Math.abs(this.mineX(e) - lane) < 0.75;
-    if (e.kind === 'pulse') return lane !== e.open;
+    if (e.kind === 'pulse' || e.kind === 'rotor') return lane !== e.open;
     return (e.mask & (1 << lane)) !== 0;
   }
 
@@ -550,6 +567,7 @@ export class RunSim {
       case 'mine':
         return Math.abs(px - this.mineX(e)) < hw + 0.36;
       case 'pulse':
+      case 'rotor':
         return Math.abs(px - (e.open ?? 1)) > 0.46 - hw;
       default: {
         const half = e.kind === 'spike' ? 0.3 : e.kind === 'debris' ? 0.4 : 0.42;
@@ -578,6 +596,13 @@ export class RunSim {
         this.charges++;
         this.addPoints(s.score.boostCharge);
         this.chargeUlt(s.ult.chargePickup);
+        break;
+      case 'pad':
+        this.pads++;
+        this.padUntil = this.tick + Math.round(s.pad.durationSec * TICK_RATE);
+        this.addPoints(s.pad.points);
+        this.chargeUlt(s.pad.ultCharge);
+        this.emit({ type: 'pad' });
         break;
       case 'core':
         this.cores++;

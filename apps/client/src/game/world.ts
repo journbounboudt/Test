@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import type { Theme } from '@void-rush/shared';
 import type { QualityProfile } from './quality';
-import { floorEmissive, floorTexture, glowTexture, nebulaTexture, skyTexture, windowsTexture } from './textures';
+import type { RunSim } from '@void-rush/shared';
+import { billboardTexture, floorEmissive, floorTexture, glowTexture, nebulaTexture, skyTexture, windowsTexture } from './textures';
 
 export const LANE_W = 2.3;
 export const TRACK_W = LANE_W * 3 + 1.2;
@@ -88,6 +89,12 @@ export class World {
   private readonly dummy = new THREE.Object3D();
   private readonly sideMat: THREE.MeshStandardMaterial;
   boss: THREE.Group | null = null;
+  private bossMode: 'event' | 'climax' | null = null;
+  private bossRise = 0;
+  private bossVisible = false;
+  private readonly bossHands: THREE.Vector3[] = [];
+  private readonly beams: THREE.Mesh[] = [];
+  private readonly boards: { mesh: THREE.Mesh; z: number; x: number; y: number; side: number }[] = [];
 
   constructor(scene: THREE.Scene, theme: Theme, q: QualityProfile) {
     const P = (this.palette = PALETTES[theme]);
@@ -179,6 +186,14 @@ export class World {
       return { z: r() * VIEW_LEN, x: side * (6.5 + r() * 8), y: -1.5 - r() * 9, s: new THREE.Vector3(1 + r() * 3, 0.4 + r() * 1.2, 1 + r() * 3), rot: new THREE.Euler((r() - 0.5) * 0.5, r() * 3, (r() - 0.5) * 0.5), spin: (r() - 0.5) * 0.2 };
     });
 
+    // Voxel blocks hugging the track (instanced), with emissive tops.
+    const blockMat = new THREE.MeshStandardMaterial({ color: 0x0a0c16, metalness: 0.75, roughness: 0.4, emissive: P.accent2, emissiveIntensity: 0.18, envMapIntensity: 0.4 });
+    addLoop(new THREE.BoxGeometry(1, 1, 1), blockMat, q.tier === 'low' ? 24 : 48, () => {
+      const side = r() < 0.5 ? -1 : 1;
+      const s = 0.6 + r() * 1.6;
+      return { z: r() * VIEW_LEN, x: side * (TRACK_W / 2 + 1.2 + r() * 3.2), y: -0.8 + r() * 1.6 - s * 0.3, s: new THREE.Vector3(s, s * (0.6 + r() * 0.9), s), rot: new THREE.Euler(0, r() * 0.5, 0), spin: 0 };
+    });
+
     // Void portal at the horizon
     this.portalMat = new THREE.ShaderMaterial({
       vertexShader: portalVert,
@@ -227,7 +242,43 @@ export class World {
     this.stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xbfd6ff, size: 1.6, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.85 }));
     this.group.add(this.stars);
 
-    if (theme === 'event') this.boss = this.buildBoss(P);
+    if (theme === 'event') {
+      this.boss = this.buildBoss(P);
+      this.bossMode = 'event';
+      this.bossVisible = true;
+      this.bossRise = 1;
+    } else if (theme === 'bridge' || theme === 'secret') {
+      this.boss = this.buildBoss(P);
+      this.boss.visible = false;
+      this.bossMode = 'climax';
+    }
+    const beamMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(P.danger).multiplyScalar(2.5), transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+    for (let i = 0; i < 3; i++) {
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1, 6, 1, true).translate(0, 0.5, 0).rotateX(Math.PI / 2), beamMat);
+      b.visible = false;
+      b.frustumCulled = false;
+      this.beams.push(b);
+      this.group.add(b);
+    }
+
+    // Holographic slogan boards along the track (reference art detail).
+    const slogans: [string[], string][] = [
+      [['БОЛЬШЕ', 'ЗАБЕГОВ', 'БОЛЬШЕ', 'ИСТОРИЙ'], '#6fb8ff'],
+      [['GO', 'FURTHER', 'YOU'], '#7fe6ff'],
+      [['GOOD', 'RUNS', 'BETTER', 'YOU'], '#b58cff'],
+      [['60', 'СЕКУНД', 'ДО', 'ЛЕГЕНДЫ'], '#ffb45a'],
+    ];
+    for (let i = 0; i < 6; i++) {
+      const [lines, color] = slogans[i % slogans.length];
+      const tex = billboardTexture(lines, color);
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.92, color: new THREE.Color(1.5, 1.5, 1.5), side: THREE.DoubleSide, depthWrite: false });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 4.8), mat);
+      const side = i % 2 ? 1 : -1;
+      mesh.rotation.y = -side * 0.55;
+      mesh.frustumCulled = false;
+      this.group.add(mesh);
+      this.boards.push({ mesh, z: 30 + i * (VIEW_LEN / 6), x: side * (TRACK_W / 2 + 3.4), y: 2.6 + r() * 1.5, side });
+    }
   }
 
   /** Distant community boss silhouette for event runs. */
@@ -248,6 +299,14 @@ export class World {
     add(rock, 26, 38, 0, 12, 10, 10);
     add(rock, -36, 16, 4, 7, 16, 7);
     add(rock, 36, 16, 4, 7, 16, 7);
+    this.bossHands.push(new THREE.Vector3(-36, 4, 8), new THREE.Vector3(36, 4, 8), new THREE.Vector3(0, 60, 12));
+    const handMat = new THREE.SpriteMaterial({ map: glowTexture(), color: P.danger, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+    for (const h of this.bossHands.slice(0, 2)) {
+      const s = new THREE.Sprite(handMat);
+      s.position.copy(h);
+      s.scale.set(12, 12, 1);
+      g.add(s);
+    }
     const eyeMat = new THREE.SpriteMaterial({ map: glowTexture(), color: P.danger, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
     for (const s of [-1, 1]) {
       const eye = new THREE.Sprite(eyeMat);
@@ -264,7 +323,53 @@ export class World {
     return g;
   }
 
+  spawnBoss() {
+    if (!this.boss || this.bossMode !== 'climax') return;
+    this.boss.visible = true;
+    this.bossVisible = true;
+  }
+
+  hideBoss() {
+    if (this.bossMode === 'climax') this.bossVisible = false;
+    for (const b of this.beams) b.visible = false;
+  }
+
+  /** Climax boss rises from the void and "throws" the debris: beams track debris landing markers. */
+  updateBoss(time: number, dt: number, sim: RunSim, renderZ: number) {
+    if (!this.boss) return;
+    const target = this.bossVisible ? 1 : 0;
+    this.bossRise += (target - this.bossRise) * Math.min(1, dt * 1.6);
+    if (this.bossMode === 'climax') {
+      this.boss.visible = this.bossRise > 0.01;
+      this.boss.position.set(Math.sin(time * 0.7) * 5, -80 + this.bossRise * 62 + Math.sin(time * 1.3) * 1.5, -125);
+      this.boss.scale.setScalar(0.7);
+      this.boss.rotation.y = Math.sin(time * 0.5) * 0.15;
+    }
+    let bi = 0;
+    if (this.bossVisible && this.bossMode === 'climax' && this.bossRise > 0.6) {
+      for (let i = sim.first; i < sim.entities.length && bi < this.beams.length; i++) {
+        const e = sim.entities[i];
+        const dist = e.z - renderZ;
+        if (dist > sim.speed * 1.6) break;
+        if (e.kind !== 'debris' || e.state !== 0 || dist < sim.speed * 0.3) continue;
+        const hand = this.bossHands[bi % this.bossHands.length];
+        const from = this.boss.localToWorld(hand.clone());
+        const to = new THREE.Vector3((e.lane - 1) * LANE_W, 0.05, -dist);
+        const beam = this.beams[bi++];
+        beam.visible = true;
+        beam.position.copy(from);
+        beam.lookAt(to);
+        beam.scale.set(1 + Math.sin(time * 40 + i) * 0.3, 1 + Math.sin(time * 40 + i) * 0.3, from.distanceTo(to));
+      }
+    }
+    for (; bi < this.beams.length; bi++) this.beams[bi].visible = false;
+  }
+
   update(renderZ: number, dt: number, time: number, boost: number) {
+    for (const b of this.boards) {
+      b.mesh.position.set(b.x, b.y + Math.sin(time * 0.8 + b.z) * 0.12, wrapZ(b.z, renderZ));
+      (b.mesh.material as THREE.MeshBasicMaterial).opacity = 0.78 + Math.sin(time * 9 + b.z) * 0.06 + (Math.sin(time * 37 + b.z) > 0.97 ? -0.4 : 0);
+    }
     const tex = this.floorMat.map!;
     tex.offset.y = renderZ / 8;
     this.floorMat.emissiveMap!.offset.y = renderZ / 8;
@@ -285,7 +390,7 @@ export class World {
     this.portalMat.uniforms.uBoost.value = boost;
     this.rings.forEach((ring, i) => (ring.rotation.z += dt * (0.15 + i * 0.1) * (i % 2 ? -1 : 1) * (1 + boost * 4)));
     this.stars.rotation.z = time * 0.002;
-    if (this.boss) {
+    if (this.boss && this.bossMode === 'event') {
       this.boss.position.y = -10 + Math.sin(time * 0.6) * 1.5;
       this.boss.rotation.y = Math.sin(time * 0.3) * 0.08;
     }

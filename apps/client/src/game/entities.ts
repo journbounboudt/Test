@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Entity, RunSim } from '@void-rush/shared';
-import { blockerFace, glowTexture, hazardStripes, hexGridTexture, scanTexture } from './textures';
+import { blockerFace, chevronTexture, glowTexture, hazardStripes, hexGridTexture, scanTexture } from './textures';
 import { LANE_W, TRACK_W, VIEW_LEN, laneX, type Palette } from './world';
 
-type HazardKind = 'blocker' | 'gate' | 'laser' | 'hole' | 'debris' | 'spike' | 'mine' | 'pulse' | 'checkpoint';
+type HazardKind = 'blocker' | 'gate' | 'laser' | 'hole' | 'debris' | 'spike' | 'mine' | 'pulse' | 'rotor' | 'checkpoint';
+type PickKind = 'shard' | 'credit' | 'charge' | 'core' | 'pad';
 
 interface View {
   kind: HazardKind;
@@ -33,8 +34,10 @@ export class EntityViews {
   private readonly telegraphed = new Set<number>();
   private readonly mats: Record<string, THREE.Material>;
   private readonly geos: Record<string, THREE.BufferGeometry>;
-  private readonly pick: Record<'shard' | 'credit' | 'charge' | 'core', THREE.InstancedMesh>;
+  private readonly pick: Record<PickKind, THREE.InstancedMesh>;
   private readonly flying: { kind: 'shard' | 'credit' | 'charge' | 'core'; x: number; y: number; z: number; t: number }[] = [];
+  private readonly shardGlow: THREE.InstancedMesh;
+  camera: THREE.Camera | null = null;
   private readonly dummy = new THREE.Object3D();
 
   constructor(scene: THREE.Scene, P: Palette) {
@@ -63,6 +66,7 @@ export class EntityViews {
       cpFrame: new THREE.MeshStandardMaterial({ color: 0x0a0c14, emissive: P.accent, emissiveIntensity: 2.2, metalness: 0.8, roughness: 0.3 }),
       cpHolo: new THREE.MeshBasicMaterial({ map: hexGridTexture(), color: P.accent, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }),
       pylon: new THREE.MeshStandardMaterial({ color: 0x0c0d14, metalness: 0.9, roughness: 0.3, emissive: P.danger, emissiveIntensity: 0.25 }),
+      rotorBlade: new THREE.MeshStandardMaterial({ map: stripes, color: 0x6a6a78, emissiveMap: stripes, emissive: 0xffffff, emissiveIntensity: 0.55, metalness: 0.8, roughness: 0.35, side: THREE.DoubleSide, transparent: true, opacity: 0.92 }),
     };
     const cones: THREE.BufferGeometry[] = [];
     const ico = new THREE.IcosahedronGeometry(1, 0);
@@ -108,10 +112,13 @@ export class EntityViews {
       credit: inst(new THREE.CylinderGeometry(0.34, 0.34, 0.09, 20).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffc53d, emissive: 0xff9a1f, emissiveIntensity: 0.9, metalness: 1, roughness: 0.25 }), 50),
       charge: inst(new THREE.CapsuleGeometry(0.18, 0.34, 4, 10), new THREE.MeshStandardMaterial({ color: 0x9ff0ff, emissive: 0x35d7ff, emissiveIntensity: 2.2, metalness: 0.4, roughness: 0.2 }), 30),
       core: inst(new THREE.IcosahedronGeometry(0.34, 1), new THREE.MeshStandardMaterial({ color: 0xff7a5a, emissive: 0xff3d57, emissiveIntensity: 2.2, metalness: 0.3, roughness: 0.2, flatShading: true }), 80),
+      pad: inst(new THREE.PlaneGeometry(LANE_W * 0.72, 2.6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: chevronTexture(), color: new THREE.Color(1.4, 1.8, 2.2), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), 24),
     };
+    // Crystal core glow inside each shard (second instanced layer, additive).
+    this.shardGlow = inst(new THREE.PlaneGeometry(1.1, 1.5), new THREE.MeshBasicMaterial({ map: glowTexture(), color: 0x9a5cff, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }), 220);
 
     const prewarm: [HazardKind, number, number][] = [
-      ['blocker', 1, 12], ['gate', 1, 4], ['gate', 2, 6], ['laser', 1, 4], ['laser', 2, 4], ['hole', 1, 10], ['debris', 1, 8], ['spike', 1, 16], ['mine', 1, 6], ['pulse', 1, 4], ['checkpoint', 1, 2],
+      ['blocker', 1, 12], ['gate', 1, 4], ['gate', 2, 6], ['laser', 1, 4], ['laser', 2, 4], ['hole', 1, 10], ['debris', 1, 8], ['spike', 1, 16], ['mine', 1, 6], ['pulse', 1, 4], ['rotor', 1, 3], ['checkpoint', 1, 2],
     ];
     for (const [k, w, n] of prewarm) for (let i = 0; i < n; i++) this.release(this.create(k, w));
   }
@@ -306,6 +313,54 @@ export class EntityViews {
         };
         break;
       }
+      case 'rotor': {
+        // A hanging blade disk; its gap sweeps round and settles over the open lane on arrival.
+        const cy = 4.3;
+        const gap = 0.62;
+        const disk = new THREE.Group();
+        disk.position.y = cy;
+        obj.add(disk);
+        const blade = new THREE.Mesh(new THREE.RingGeometry(0.9, 5.4, 64, 1, gap / 2, Math.PI * 2 - gap), M.rotorBlade.clone());
+        disk.add(blade);
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(5.4, 0.12, 6, 72, Math.PI * 2 - gap), M.redCore);
+        rim.rotation.z = gap / 2;
+        disk.add(rim);
+        for (let i = 0; i < 6; i++) {
+          const spoke = new THREE.Mesh(G.bar, M.pylon);
+          const a = gap / 2 + ((Math.PI * 2 - gap) * (i + 0.5)) / 6;
+          spoke.scale.set(4.5, 0.14, 0.14);
+          spoke.position.set(Math.cos(a) * 3.15, Math.sin(a) * 3.15, 0.05);
+          spoke.rotation.z = a;
+          disk.add(spoke);
+        }
+        for (const sgn of [-1, 1]) {
+          const edge = new THREE.Mesh(G.bar, M.openFrame);
+          const a = sgn * (gap / 2);
+          edge.scale.set(4.5, 0.08, 0.08);
+          edge.position.set(Math.cos(a) * 3.15, Math.sin(a) * 3.15, 0.08);
+          edge.rotation.z = a;
+          disk.add(edge);
+        }
+        const hub = new THREE.Mesh(G.mineShell, M.dark);
+        hub.scale.setScalar(2.2);
+        disk.add(hub);
+        const hubGlow = new THREE.Mesh(G.sphere, M.redCore);
+        hubGlow.scale.setScalar(1.6);
+        hubGlow.position.z = 0.4;
+        disk.add(hubGlow);
+        base.update = (e, ctx) => {
+          const dist = e.z - ctx.renderZ;
+          obj.position.set(0, 0, -dist);
+          const target = Math.atan2(1.0 - cy, laneX(e.open ?? 1));
+          disk.rotation.z = target + Math.max(0, dist) * 0.07;
+          // Once passed, the disk sits between camera and Runner: fade it out so it never blinds the view.
+          const fade = THREE.MathUtils.clamp((dist + 0.5) / 4, 0, 1);
+          obj.visible = fade > 0.02;
+          (blade.material as THREE.MeshStandardMaterial).opacity = 0.9 * fade;
+          disk.scale.setScalar(0.85 + 0.15 * fade);
+        };
+        break;
+      }
       case 'checkpoint': {
         const half = TRACK_W / 2 + 0.3;
         for (const s of [-1, 1]) {
@@ -342,7 +397,8 @@ export class EntityViews {
   sync(ctx: SyncCtx, runnerX: number, dt: number, hideAhead: number | null) {
     const { sim, renderZ, time } = ctx;
     this.seen.clear();
-    const counts = { shard: 0, credit: 0, charge: 0, core: 0 };
+    const counts = { shard: 0, credit: 0, charge: 0, core: 0, pad: 0 };
+    let glowCount = 0;
     const d = this.dummy;
     const far = renderZ + VIEW_LEN - 50;
     for (let i = sim.first; i < sim.entities.length; i++) {
@@ -352,6 +408,17 @@ export class EntityViews {
       const end = e.kind === 'hole' ? e.z + e.len : e.z;
       if (end < renderZ - 14 || e.z > far) continue;
       if (hideAhead !== null && e.z > hideAhead && e.state === 2 && e.kind !== 'checkpoint') continue;
+      if (e.kind === 'pad') {
+        if (e.state === 1 && e.z < renderZ - 2) continue;
+        const m = this.pick.pad;
+        if (counts.pad >= m.instanceMatrix.count) continue;
+        d.position.set(laneX(e.lane), 0.035, -(e.z - renderZ));
+        d.rotation.set(0, 0, 0);
+        d.scale.setScalar(e.state === 1 ? 1.08 : 1);
+        d.updateMatrix();
+        m.setMatrixAt(counts.pad++, d.matrix);
+        continue;
+      }
       if (e.kind === 'shard' || e.kind === 'credit' || e.kind === 'charge' || e.kind === 'core') {
         if (e.state !== 0) continue;
         const m = this.pick[e.kind];
@@ -362,6 +429,12 @@ export class EntityViews {
         d.scale.setScalar(1);
         d.updateMatrix();
         m.setMatrixAt(counts[e.kind]++, d.matrix);
+        if (e.kind === 'shard' && this.camera && glowCount < this.shardGlow.instanceMatrix.count) {
+          d.quaternion.copy(this.camera.quaternion);
+          d.scale.setScalar(0.9 + Math.sin(time * 6 + e.id) * 0.1);
+          d.updateMatrix();
+          this.shardGlow.setMatrixAt(glowCount++, d.matrix);
+        }
         continue;
       }
       if (e.kind === 'hint') continue;
@@ -408,10 +481,14 @@ export class EntityViews {
       d.updateMatrix();
       m.setMatrixAt(counts[f.kind]++, d.matrix);
     }
-    for (const k of ['shard', 'credit', 'charge', 'core'] as const) {
+    for (const k of ['shard', 'credit', 'charge', 'core', 'pad'] as const) {
       this.pick[k].count = counts[k];
       this.pick[k].instanceMatrix.needsUpdate = true;
     }
+    this.shardGlow.count = glowCount;
+    this.shardGlow.instanceMatrix.needsUpdate = true;
+    const padMat = this.pick.pad.material as THREE.MeshBasicMaterial;
+    if (padMat.map) padMat.map.offset.y = -time * 1.6;
   }
 
   dispose() {

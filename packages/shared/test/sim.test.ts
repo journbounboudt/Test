@@ -115,6 +115,47 @@ describe('run simulation', () => {
   });
 });
 
+describe('new mechanics', () => {
+  it('climax routes emit a mini-boss event and place boss chunks late in the run', () => {
+    const sim = new RunSim({ config, routeId: 'bridge', seed: 77, gear: DEFAULT_GEAR, revivesAllowed: 0, emitEvents: true });
+    let climax = false;
+    let guard = 0;
+    while (!sim.done && guard++ < 6000) {
+      if (sim.phase === 'checkpoint') sim.step([`boost:${sim.checkpointOptions![0]}`]);
+      else if (sim.phase === 'down') sim.step(['revive', 'end']);
+      else sim.step();
+      if (sim.events.some((e) => e.type === 'climax')) climax = true;
+      sim.events.length = 0;
+      if (sim.phase === 'down') break;
+    }
+    const probe = new RouteStream(config.routes.bridge, config.sim, 77);
+    const { s } = stream('bridge', 77, probe.profile.distanceAt(config.routes.bridge.durationSec));
+    const bossIdx = s.stats.chunks.findIndex((c) => c.startsWith('boss_'));
+    assert.ok(bossIdx > 0 && bossIdx > s.stats.chunks.length * 0.7, `boss chunks only near the end (${bossIdx}/${s.stats.chunks.length})`);
+    assert.ok(climax || sim.hardHits > 0, 'climax event emitted when the run reaches it');
+  });
+
+  it('rotor gates only let the open lane through', () => {
+    const sim = new RunSim({ config, routeId: 'rift', seed: 5, gear: DEFAULT_GEAR, revivesAllowed: 0 });
+    const rotor: Entity = { id: 99999, kind: 'rotor', z: sim.z + 5, len: 0.8, lane: 0, mask: 0b101, hard: true, state: 0, open: 1 };
+    const probe = sim as unknown as { overlapsX(e: Entity, px: number): boolean };
+    assert.equal(probe.overlapsX(rotor, 1), false);
+    assert.equal(probe.overlapsX(rotor, 0), true);
+    assert.equal(probe.overlapsX(rotor, 2), true);
+  });
+
+  it('boost pads give a short speed burst', () => {
+    const sim = new RunSim({ config, routeId: 'neon', seed: 3, gear: DEFAULT_GEAR, revivesAllowed: 0 });
+    for (let i = 0; i < 30; i++) sim.step();
+    const before = sim.speed;
+    sim.entities.splice(sim.first, 0, { id: 88888, kind: 'pad', z: sim.z + 0.3, len: 0, lane: 1, mask: 2, hard: false, state: 0 });
+    sim.step();
+    sim.step();
+    assert.equal(sim.pads, 1);
+    assert.ok(sim.speed > before * 1.1);
+  });
+});
+
 describe('survivability', () => {
   const routes: RouteId[] = ['neon', 'rift', 'bridge', 'secret', 'event', 'tutorial'];
   for (const route of routes) {
