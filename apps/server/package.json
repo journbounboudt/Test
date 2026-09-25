@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch-path=src --watch-path=../../packages/shared/src src/index.ts",
-    "start": "node src/index.ts"
+    "dev": "node --env-file-if-exists=../../.env --watch-path=src --watch-path=../../packages/shared/src src/index.ts",
+    "start": "node --env-file-if-exists=../../.env src/index.ts"
   },
   "dependencies": {
     "@fastify/static": "^8.2.0",
