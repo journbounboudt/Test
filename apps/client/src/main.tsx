@@ -7,6 +7,7 @@ import '@fontsource/exo-2/900-italic.css';
 import '@fontsource/russo-one/400.css';
 import './styles/global.css';
 import './styles/screens.css';
+import './styles/run.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
