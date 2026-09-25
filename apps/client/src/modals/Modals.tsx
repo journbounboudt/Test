@@ -67,9 +67,8 @@ function EnergyModal() {
           {p.energy.value <= p.energy.cap && <span className="muted">/{p.energy.cap}</span>}
         </div>
         <div className="sub">
-          {p.energy.value > p.energy.cap ? `Запас сверх лимита (${p.energy.cap}) — восстановление на паузе` : p.energy.value >= p.energy.cap ? 'Энергия полная' : <span className="row" style={{ gap: 4, justifyContent: 'center' }}><Clock size={14} /> +1 через {clock(next)} · полное восстановление ~{Math.ceil(((p.energy.cap - p.energy.value) * p.energy.regenSec) / 60)} мин</span>}
+          {p.energy.value > p.energy.cap ? `Сверх лимита ${p.energy.cap} — пауза восстановления` : p.energy.value >= p.energy.cap ? 'Энергия полная' : <span className="row" style={{ gap: 4, justifyContent: 'center' }}><Clock size={14} /> +1 через {clock(next)}</span>}
         </div>
-        <div className="sub mt-s">Стандартный забег стоит {cfg.routes.neon.energyCost} энергии. Энергия восстанавливается сама.</div>
       </div>
       <div className="col mt">
         {refill.map((prod) => (
@@ -137,7 +136,7 @@ function CurrencyModal({ m }: { m: Extract<ModalState, { type: 'currency' }> }) 
           <CurrencyIcon kind={m.currency} size={16} /> {fmt(m.current)}
         </b>
       </div>
-      <div className="sub center mt-s">{m.currency === 'shards' || m.currency === 'skinFragments' ? 'Добывается в забегах и заданиях.' : 'Пополни запас в магазине.'}</div>
+      <div className="sub center mt-s">{m.currency === 'shards' || m.currency === 'skinFragments' ? 'Добывается в забегах и заданиях' : 'Пополни в магазине'}</div>
       <div className="actions">
         <Btn variant="ghost" onClick={close}>
           Закрыть
@@ -159,7 +158,7 @@ function ShardsModal() {
         <CurrencyIcon kind="shards" size={56} />
         <h3 className="modal-title">Осколки пустоты</h3>
         <div className="energy-big num">{fmt(p.balances.shards)}</div>
-        <div className="sub">Главный ресурс забега. Собирай их на трассе, в заданиях и событиях. Нужны для продвинутых улучшений снаряжения.</div>
+        <div className="sub">Собирай в забегах. Нужны для улучшений.</div>
       </div>
       <div className="actions">
         <Btn variant="ghost" onClick={close}>
@@ -189,7 +188,7 @@ function StreakModal() {
       <div className="center">
         <Gift size={52} />
         <h3 className="modal-title">Серия дней: {p.streak.count}</h3>
-        <div className="sub">Заходи каждый день — награды растут. Пропуск дня сбрасывает серию.</div>
+        <div className="sub">Заходи каждый день — награды растут</div>
       </div>
       <div className="streak-grid mt">
         {cfg.streak.rewards.map((r, i) => {
@@ -210,7 +209,7 @@ function StreakModal() {
             Забрать
           </Cta>
         ) : (
-          <div className="sub center">Награда за сегодня получена. Возвращайся завтра!</div>
+          <div className="sub center">Возвращайся завтра</div>
         )}
       </div>
     </Modal>
@@ -349,7 +348,7 @@ function PurchaseModal({ productId }: { productId: string }) {
               <PriceTag price={product.price} />
             </b>
           </div>
-          {xtr && <div className="sub center mt-s">Оплата через Telegram Stars. {meta?.payments.sandbox && !meta.payments.telegram ? 'Сервер в режиме разработки — используется тестовая оплата.' : ''}</div>}
+          {xtr && <div className="sub center mt-s">{meta?.payments.sandbox && !meta.payments.telegram ? 'Тестовая оплата (dev)' : 'Оплата через Telegram Stars'}</div>}
           <div className="actions">
             <Btn variant="ghost" onClick={close}>
               Отмена
@@ -364,7 +363,7 @@ function PurchaseModal({ productId }: { productId: string }) {
         <div className="center" style={{ padding: 20 }}>
           <div className="spinner" style={{ width: 44, height: 44, margin: '0 auto' }} />
           <h3 className="modal-title mt">Обработка платежа</h3>
-          <div className="sub">Ожидаем подтверждение сервера. Не закрывайте приложение.</div>
+          <div className="sub">Не закрывайте приложение</div>
         </div>
       )}
       {stage === 'sandbox' && (
@@ -395,7 +394,7 @@ function PurchaseModal({ productId }: { productId: string }) {
         <div className="center">
           <AlertTriangle size={44} color="#ff6a6a" />
           <h3 className="modal-title">{outcome?.status === 'pending' ? 'Платёж ещё обрабатывается' : 'Покупка не прошла'}</h3>
-          <div className="sub">{outcome?.status === 'pending' ? 'Товар будет начислен автоматически, как только Telegram подтвердит оплату.' : (outcome && 'message' in outcome ? outcome.message : undefined) ?? 'Деньги не списаны. Попробуйте ещё раз.'}</div>
+          <div className="sub">{outcome?.status === 'pending' ? 'Начислим автоматически после подтверждения' : (outcome && 'message' in outcome ? outcome.message : undefined) ?? 'Деньги не списаны. Попробуйте ещё раз.'}</div>
           <div className="actions">
             <Btn variant="ghost" onClick={close}>
               Закрыть
@@ -522,7 +521,7 @@ function UpgradeAllModal() {
   return (
     <Modal onClose={close}>
       <h3 className="modal-title">Улучшить всё</h3>
-      <div className="sub center">Мы подобрали улучшения, которые ты можешь позволить. Баланс не тратится без подтверждения.</div>
+      <div className="sub center">Всё, что тебе по карману</div>
       <div className="mt">
         {grouped.length === 0 && <div className="empty">Нет доступных улучшений</div>}
         {grouped.map(([slot, lv]) => (
@@ -588,7 +587,7 @@ function SkinModal({ skinId }: { skinId?: string }) {
             ))}
           </div>
           <div className="sub" style={{ fontSize: 11 }}>
-            Скин меняет только внешний вид, свечение и шлейф.
+            Только внешний вид
           </div>
         </div>
       </div>

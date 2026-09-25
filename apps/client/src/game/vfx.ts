@@ -158,7 +158,7 @@ export class Trail {
     this.mesh.frustumCulled = false;
     const c = this.geo.attributes.color as THREE.BufferAttribute;
     for (let i = 0; i <= this.segs; i++) {
-      const f = Math.pow(1 - i / this.segs, 2.2) * 0.8;
+      const f = Math.pow(1 - i / this.segs, 3) * 0.5;
       c.setXYZ(i * 2, f, f, f);
       c.setXYZ(i * 2 + 1, f, f, f);
     }
@@ -174,7 +174,7 @@ export class Trail {
     const p = this.geo.attributes.position as THREE.BufferAttribute;
     let h = 0;
     for (let i = 0; i <= this.segs; i++) {
-      const back = i * 0.55;
+      const back = i * 0.16;
       const target = renderZ - back;
       while (h < this.hist.length - 1 && this.hist[h].z > target) h++;
       const px = this.hist[h]?.x ?? x;

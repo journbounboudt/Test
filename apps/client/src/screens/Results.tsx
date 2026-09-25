@@ -1,4 +1,4 @@
-import { Home as HomeIcon, Info } from 'lucide-react';
+import { Home as HomeIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { doubleReward, startRun } from '../state/actions';
 import { useStore } from '../state/store';
@@ -112,40 +112,17 @@ export function Results() {
         <div className="hero-shade" />
         <div className="results-head">
           <h1 className="h-display results-title">{s.finished ? 'Забег завершён' : 'Забег прерван'}</h1>
-          <div className="results-sub">{s.finished ? 'Ты прорвался сквозь пустоту' : `${route.name} · ${fmt(s.distance)} м`}</div>
+          <div className="results-sub">{route.name}</div>
           <GradeBadge grade={s.grade} />
-          <div className="grade-label">
-            <i />
-            ранг
-            <i />
-          </div>
-        </div>
-        <div className="side-note results-note-l">
-          Больше
-          <br />
-          дальше
-          <br />
-          быстрее
-          <br />
-          ты
-        </div>
-        <div className="side-note results-note-r">
-          Good
-          <br />
-          runs
-          <br />
-          better
-          <br />
-          you
         </div>
       </section>
 
       <div className={`panel cyan results-stats ${result.newRecord ? 'record-flash' : ''}`}>
         <div>
           <Trophy size={26} />
-          <span className="tiny">Итоговый счёт</span>
+          <span className="tiny">Счёт</span>
           <CountUp value={s.score} ms={1300} className="rs-val" />
-          {result.newRecord && <span className="record">▲ Новый рекорд!</span>}
+          {result.newRecord && <span className="record">▲ Рекорд!</span>}
         </div>
         <div>
           <Road size={26} />
@@ -156,7 +133,7 @@ export function Results() {
         </div>
         <div>
           <Target size={26} />
-          <span className="tiny">Макс. комбо</span>
+          <span className="tiny">Комбо</span>
           <span className="rs-val num">x{s.maxCombo}</span>
         </div>
         <div>
@@ -169,15 +146,10 @@ export function Results() {
       {result.rejected ? (
         <div className="panel red mt center" style={{ padding: 14 }}>
           <b>Забег не засчитан</b>
-          <div className="sub">Сервер не смог подтвердить результат. Счёт показан локально и не попадёт в рейтинг.</div>
+          <div className="sub">Сервер не подтвердил результат</div>
         </div>
       ) : (
         <>
-          <div className="rewards-title">
-            <i />
-            твои награды
-            <i />
-          </div>
           <div className={`chest-zone ${revealed > 0 ? 'open' : ''}`}>
             <div className="chest-rays" aria-hidden />
             <Img src="/art/chest.webp" className="chest-img" />
@@ -192,11 +164,11 @@ export function Results() {
                 </div>
               ))}
             </div>
-            {revealing && <div className="tap-hint">Нажми, чтобы открыть всё</div>}
+            {revealing && <div className="tap-hint">Нажми — открыть всё</div>}
           </div>
           <div className="result-meta">
             {result.ranked ? (
-              <span>Засчитано в турнир недели{p.leaderboard.rank ? ` · место #${p.leaderboard.rank}` : ''}</span>
+              <span>{p.leaderboard.rank ? `Турнир недели · место #${p.leaderboard.rank}` : 'Засчитано в турнир'}</span>
             ) : route.competitive ? (
               <span>Не засчитано в рейтинг</span>
             ) : null}
@@ -242,11 +214,6 @@ export function Results() {
           </button>
         )}
       </div>
-      {canDouble && (
-        <div className="double-note">
-          <Info size={14} /> Удваивает кредиты и осколки этого забега
-        </div>
-      )}
       {doubled && <div className="double-note done">Награды удвоены!</div>}
       <div className="row mt" style={{ justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
         <Btn variant="ghost" size="sm" onClick={() => navigate(tutorial ? 'routes' : 'home')}>

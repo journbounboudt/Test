@@ -1,4 +1,4 @@
-import { ChevronsUp, ChevronRight, Info } from 'lucide-react';
+import { ChevronsUp, ChevronRight } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { GEAR_SLOTS, displayStats, planUpgradeAll, skinById, upgradeCost, type GearSlot } from '@void-rush/shared';
 import { track } from '../analytics';
@@ -65,15 +65,10 @@ export function Gear() {
     <div className="screen gear">
       <TopBar />
       <header className="gear-head">
-        <div>
-          <h1 className="h-display gear-title">Снаряжение</h1>
-          <div className="gear-sub">Беги дальше. Становись сильнее.</div>
-        </div>
-        <div className="panel info-chip">
-          <Info size={16} className="cyan-text" /> Лучшее снаряжение помогает бежать дальше
-        </div>
+        <h1 className="h-display gear-title">Снаряжение</h1>
+        <div className="gear-sub">Прокачай — беги дальше</div>
       </header>
-      {highlight && plan.steps.length > 0 && <div className="coach center">Выбери слот со стрелкой и сделай первое улучшение</div>}
+      {highlight && plan.steps.length > 0 && <div className="coach center">Нажми слот со стрелкой</div>}
       <div className="gear-layout">
         <div className="gear-col">
           {left.map((s) => (
@@ -113,14 +108,14 @@ export function Gear() {
         <div>
           <Shard size={26} />
           <span>
-            <small>Бонус осколков</small>
+            <small>Осколки</small>
             <b>+{stats.shardBonus}%</b>
           </span>
         </div>
         <div>
           <StarIcon size={26} />
           <span>
-            <small>Комбо бонус</small>
+            <small>Комбо</small>
             <b>+{stats.comboBonus}%</b>
           </span>
         </div>
@@ -138,10 +133,9 @@ export function Gear() {
           <div className="skin-banner-text">
             <div className="kicker">{f.rarity === 'legendary' ? 'Легендарный скин' : 'Премиум скин'}</div>
             <div className="h-display skin-banner-title">{f.name}</div>
-            <div className="sub">{f.description}</div>
           </div>
           <Img src={`/art/skin-${f.id}.webp`} className="skin-banner-art" />
-          <span className="chip violet skin-banner-chip">{p.ownedSkins.includes(f.id) ? 'Открыт' : 'Premium'}</span>
+          {p.ownedSkins.includes(f.id) && <span className="chip violet skin-banner-chip">Открыт</span>}
           <span className="btn sm skin-banner-btn">
             Посмотреть <ChevronRight size={14} />
           </span>
@@ -157,7 +151,7 @@ export function Gear() {
         <Cta icon={<ChevronsUp size={26} strokeWidth={3} />} disabled={plan.steps.length === 0} onClick={() => openModal({ type: 'upgradeAll' })}>
           Улучшить всё
         </Cta>
-        {plan.steps.length === 0 && <div className="sub center mt-s">{GEAR_SLOTS.every((sl) => p.gear[sl] >= cfg.gear[sl].maxLevel) ? 'Всё снаряжение прокачано до максимума' : 'Не хватает ресурсов: беги за кредитами и осколками'}</div>}
+        {plan.steps.length === 0 && <div className="sub center mt-s">{GEAR_SLOTS.every((sl) => p.gear[sl] >= cfg.gear[sl].maxLevel) ? 'Всё на максимуме' : 'Не хватает ресурсов'}</div>}
       </div>
     </div>
   );

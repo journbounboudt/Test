@@ -68,7 +68,6 @@ export function EventLobby() {
             <span className="row" style={{ gap: 4 }}>
               <Users size={13} /> {fmt(ev.participants)} {plural(ev.participants, ['бегун', 'бегуна', 'бегунов'])}
             </span>
-            <span>Нанесено {compact(ev.damage)} урона</span>
           </div>
         </div>
       </section>
@@ -81,12 +80,6 @@ export function EventLobby() {
         <div className="panel">
           <span className="tiny">Лучший забег</span>
           <b className="num">{fmt(ev.me.best)}</b>
-        </div>
-        <div className="panel">
-          <span className="tiny">Бесплатные попытки</span>
-          <b className="num">
-            {ev.me.freeAttemptsLeft}/{ev.freeAttemptsPerDay}
-          </b>
         </div>
       </div>
 
@@ -112,7 +105,7 @@ export function EventLobby() {
                 Забрать
               </Btn>
             ) : (
-              <span className="sub">{m.reached ? 'Сыграй забег, чтобы забрать' : 'Ещё не достигнут'}</span>
+              <span className="sub">{m.reached ? 'Сыграй забег' : 'Впереди'}</span>
             )}
           </div>
         ))}
@@ -150,9 +143,9 @@ export function EventLobby() {
         ) : (
           <div className="locked-note">{p.level < 2 ? 'Событие откроется на уровне 2' : 'Событие пока недоступно'}</div>
         )}
-        <div className="caption-line row" style={{ justifyContent: 'center', gap: 4 }}>
+        <div className="cta-note">
           {ev.me.freeAttemptsLeft > 0 ? (
-            `${plural(ev.me.freeAttemptsLeft, ['осталась', 'осталось', 'осталось'])} ${ev.me.freeAttemptsLeft} ${plural(ev.me.freeAttemptsLeft, ['бесплатная попытка', 'бесплатные попытки', 'бесплатных попыток'])}`
+            `${plural(ev.me.freeAttemptsLeft, ['Осталась', 'Осталось', 'Осталось'])} ${ev.me.freeAttemptsLeft} ${plural(ev.me.freeAttemptsLeft, ['бесплатная попытка', 'бесплатные попытки', 'бесплатных попыток'])}`
           ) : (
             <>
               <Bolt size={12} /> {ev.energyCost} энергии за попытку
