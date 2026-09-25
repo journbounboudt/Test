@@ -7,7 +7,9 @@ export function RunnerView({ skin, className }: { skin: SkinDef; className?: str
   const viewer = useRef<RunnerViewer | null>(null);
   useEffect(() => {
     let disposed = false;
-    void import('../game/viewer').then(({ RunnerViewer }) => {
+    // The model load never rejects; without it the viewer shows the procedural fallback runner.
+    const assetReady = import('../game/runnerAsset').then((m) => m.loadRunnerAsset());
+    void Promise.all([import('../game/viewer'), assetReady]).then(([{ RunnerViewer }]) => {
       if (disposed || !host.current) return;
       try {
         viewer.current = new RunnerViewer(host.current, skin);

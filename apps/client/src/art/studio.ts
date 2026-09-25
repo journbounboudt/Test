@@ -12,6 +12,7 @@ import { DEFAULT_CONFIG, DEFAULT_GEAR, RunSim, type RouteId, type SkinDef, type 
 import { EntityViews } from '../game/entities';
 import { profileFor } from '../game/quality';
 import { RunnerModel, type RunnerPose } from '../game/runner';
+import { loadRunnerAsset } from '../game/runnerAsset';
 import { glowTexture } from '../game/textures';
 import { World } from '../game/world';
 
@@ -389,6 +390,7 @@ async function render(shot: Shot) {
 }
 
 async function main() {
+  await loadRunnerAsset();
   const only = new URLSearchParams(location.search).get('only');
   for (const s of shots) {
     if (only && !s.name.startsWith(only)) continue;
