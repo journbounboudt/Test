@@ -31,24 +31,6 @@ export function Home() {
           <Logo size={52} />
           <div className="hero-tagline">60 секунд. Один забег. Большой лут.</div>
         </div>
-        <div className="side-note hero-note-r">
-          Быстрее
-          <br />
-          дальше
-          <br />
-          больше
-          <i className="note-rule" />
-        </div>
-        <div className="side-note hero-note-l">
-          Короткие
-          <br />
-          забеги,
-          <br />
-          большие
-          <br />
-          истории
-          <i className="note-rule" />
-        </div>
         <div className="home-cards">
           <button className="panel home-card" onClick={go(() => navigate('leaderboard'))}>
             <div className="hc-head">
@@ -87,31 +69,25 @@ export function Home() {
 
       <div className={`home-cta ${highlight ? 'pulse' : ''}`}>
         <Cta onClick={() => navigate(firstTime ? 'howto' : 'routes')}>В забег</Cta>
-        {highlight && firstTime && <div className="coach">Начни с короткого обучающего забега</div>}
-      </div>
-      <div className="caption-line">
-        <i />
-        твои 60 секунд в космосе
-        <i />
+        {firstTime && <div className="coach">Начни с обучения — 60 секунд</div>}
       </div>
 
-      <div className="panel loop-strip">
-        {[
-          { icon: <Hourglass size={24} />, t: 'Забеги', s: '60 сек' },
-          { icon: <Shard size={24} />, t: 'Собирай', s: 'осколки' },
-          { icon: <Chip size={24} />, t: 'Усиливай', s: 'снаряжение' },
-          { icon: <Trophy size={24} />, t: 'Бей', s: 'рекорды' },
-        ].map((x, i) => (
-          <div key={x.t} className="loop-step">
-            <span className="loop-ico">{x.icon}</span>
-            <span className="loop-txt">
-              {x.t}
-              <small>{x.s}</small>
-            </span>
-            {i < 3 && <ChevronRight size={14} className="loop-arrow" />}
-          </div>
-        ))}
-      </div>
+      {p.stats.runs < 3 && (
+        <div className="panel loop-strip">
+          {[
+            { icon: <Hourglass size={22} />, t: 'Беги' },
+            { icon: <Shard size={22} />, t: 'Собирай' },
+            { icon: <Chip size={22} />, t: 'Усиливай' },
+            { icon: <Trophy size={22} />, t: 'Бей рекорды' },
+          ].map((x, i) => (
+            <div key={x.t} className="loop-step">
+              <span className="loop-ico">{x.icon}</span>
+              <span className="loop-txt">{x.t}</span>
+              {i < 3 && <ChevronRight size={14} className="loop-arrow" />}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="promo-row">
         <button
@@ -121,35 +97,26 @@ export function Home() {
             navigate('shop');
           })}
         >
-          <span className="promo-art-wrap">
+          <span className="promo-icon art">
             <Img src="/art/skin-void_shadow.webp" className="promo-art" />
           </span>
-          <span className="promo-text">
-            <b>Скины</b>
-            <span>Выделяйся в порталах</span>
-          </span>
-          <ChevronRight size={15} className="promo-chev" />
+          <b>Скины</b>
+          <span className="promo-sub">Твой стиль</span>
         </button>
         <button className="panel promo gold" onClick={go(() => navigate('pass'))}>
           <span className="promo-icon">
-            <PassCard size={44} />
+            <PassCard size={36} />
           </span>
-          <span className="promo-text">
-            <b>Пропуск</b>
-            <span>Эксклюзивные награды</span>
-          </span>
-          <ChevronRight size={15} className="promo-chev" />
+          <b>Пропуск</b>
+          <span className="promo-sub">Награды сезона</span>
           {p.badges.pass && <i className="badge-dot" />}
         </button>
         <button className="panel promo cyan" onClick={go(() => openModal({ type: 'energy' }))}>
           <span className="promo-icon">
-            <Battery size={44} />
+            <Battery size={36} />
           </span>
-          <span className="promo-text">
-            <b>Энергия</b>
-            <span>Больше забегов и лута</span>
-          </span>
-          <ChevronRight size={15} className="promo-chev" />
+          <b>Энергия</b>
+          <span className="promo-sub">Больше забегов</span>
         </button>
       </div>
 
@@ -159,7 +126,6 @@ export function Home() {
         <div className="banner-body">
           <div className="kicker">Сезон {p.pass.number}</div>
           <div className="h-display banner-title">{p.pass.name}</div>
-          <div className="sub">Особые награды. Ограниченное время.</div>
         </div>
         <div className="banner-side">
           <div className="banner-timer">
@@ -176,28 +142,18 @@ export function Home() {
       </button>
 
       {p.event.active && (
-        <button className="panel banner art event" onClick={go(() => navigate('event'))}>
-          <Img src="/art/event-boss.webp" className="banner-img" style={{ objectPosition: 'center 30%' }} />
-          <div className="banner-shade red" />
-          <div className="banner-body">
-            <div className="kicker" style={{ color: '#ff7a9a' }}>
-              Событие
-            </div>
-            <div className="h-display banner-title">{p.event.title}</div>
-            <div className="sub">Весь мир бьёт одного Колосса</div>
-          </div>
-          <div className="banner-side">
-            <div className="banner-timer red">
-              <Stopwatch size={16} />
-              <span>
-                До конца
-                <b className="num">{duration(p.event.endAt - now)}</b>
+        <button className="panel event-strip home-event" onClick={go(() => navigate('event'))}>
+          <Img src="/art/event-boss.webp" className="es-thumb" />
+          <span className="es-body">
+            <span className="es-top">
+              <span className="chip event">Событие</span>
+              <span className="es-timer num">
+                <Stopwatch size={14} /> {duration(p.event.endAt - now)}
               </span>
-            </div>
-            <span className="btn sm danger banner-btn">
-              В бой <ChevronRight size={14} />
             </span>
-          </div>
+            <b>{p.event.title}</b>
+          </span>
+          <ChevronRight size={18} className="es-chev" />
         </button>
       )}
 

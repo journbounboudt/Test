@@ -177,15 +177,6 @@ img {
   color: transparent;
   filter: drop-shadow(0 0 16px rgba(90, 160, 255, 0.55)) drop-shadow(0 2px 0 rgba(20, 30, 80, 0.9));
 }
-.hero-kicker {
-  margin-top: 6px;
-  font-size: 11.5px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: #e6eeff;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
-}
 
 .h-section {
   font-weight: 800;
@@ -209,15 +200,6 @@ img {
   font-size: 13px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-.side-note {
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(160, 190, 255, 0.55);
-  line-height: 1.35;
-  font-weight: 600;
 }
 
 .num {
@@ -423,8 +405,17 @@ img {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 10px;
-  margin: 18px 2px 10px;
+  gap: 12px;
+  margin: 24px 4px 12px;
+}
+.section-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 16px 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
 }
 
 /* ───────── buttons ───────── */
@@ -930,7 +921,7 @@ img {
   height: 17px;
   padding: 0 4px;
   border-radius: 9px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 17px;
   text-align: center;
   color: #03101f;
@@ -986,7 +977,7 @@ img {
 .pill-cap {
   color: var(--muted);
   font-weight: 700;
-  font-size: 0.9em;
+  font-size: 11px;
 }
 .pill .plus {
   display: grid;
@@ -1005,7 +996,7 @@ img {
   left: 50%;
   top: calc(100% + 1px);
   transform: translateX(-50%);
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1;
   color: #8fb4e6;
   font-weight: 700;

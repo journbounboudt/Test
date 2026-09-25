@@ -1,11 +1,11 @@
-import { ChevronRight, Crown as CrownL, Info, Star, Zap, Lock } from 'lucide-react';
+import { ChevronRight, Crown as CrownL, Star, Zap, Lock } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ShopProduct } from '../api/types';
 import { track } from '../analytics';
 import { fetchShop, handleError, setProfile } from '../state/actions';
 import { useStore, type ShopTab } from '../state/store';
 import { Btn, Img, PriceTag, TopBar, click } from '../ui/common';
-import { Bolt, CurrencyIcon, Helmet, PassCard, ReviveIcon, StarIcon, Crown, Trophy } from '../ui/icons';
+import { Bolt, Helmet, PassCard, ReviveIcon, StarIcon, Crown, TgStar } from '../ui/icons';
 import { ProductArt } from '../ui/ProductArt';
 import { fmt } from '../ui/format';
 
@@ -53,7 +53,7 @@ function StarCard({ p }: { p: ShopProduct }) {
         openModal({ type: 'purchase', productId: p.productId });
       }}
     >
-      {best && <div className="best-badge">{p.badge}</div>}
+      {best && <div className="best-badge">Выгодно</div>}
       {!p.available && <span className="owned-tag">Куплено</span>}
       <div className="row star-amount">
         <StarIcon size={20} />
@@ -83,7 +83,7 @@ function ProductRow({ p }: { p: ShopProduct }) {
       <ProductArt image={p.image} size={60} />
       <div className="grow" style={{ textAlign: 'left' }}>
         <b className="pr-title">{p.title}</b>
-        {p.subtitle && <div className="sub">{p.subtitle}</div>}
+        {p.subtitle && !p.bonusPercent && <div className="sub">{p.subtitle}</div>}
         {p.bonusPercent ? <span className="chip violet" style={{ marginTop: 4 }}>+{p.bonusPercent}%</span> : null}
       </div>
       <span className="price-btn">{p.available ? <PriceTag price={p.price} /> : 'Куплено'}</span>
@@ -113,16 +113,6 @@ export function Shop() {
         <div className="hero-shade left" />
         <div className="shop-hero-text">
           <h1 className="h-chrome shop-title">Магазин</h1>
-          <div className="hero-kicker">Больше возможностей. Дальше в пустоту.</div>
-        </div>
-        <div className="side-note" style={{ position: 'absolute', right: 12, top: 76, textAlign: 'right' }}>
-          Good
-          <br />
-          runs
-          <br />
-          better
-          <br />
-          you
         </div>
       </section>
       <div className="tabs">
@@ -162,12 +152,8 @@ export function Shop() {
 
       {products && tab === 'stars' && (
         <>
-          <div className="section-head">
-            <div>
-              <h2 className="h-section">Звёзды</h2>
-              <div className="sub">Премиальная валюта VOID RUSH. Оплата через Telegram Stars.</div>
-            </div>
-            <Info size={18} className="muted" style={{ flex: 'none' }} />
+          <div className="section-note">
+            <TgStar size={14} /> Оплата через Telegram Stars
           </div>
           <div className="star-grid">
             {stars.map((p) => (
@@ -175,10 +161,7 @@ export function Shop() {
             ))}
           </div>
           <div className="section-head">
-            <div>
-              <h2 className="h-section">Спецпредложения</h2>
-              <div className="sub">Наборы для твоего прогресса</div>
-            </div>
+            <h2 className="h-section">Спецпредложения</h2>
           </div>
           <div className="offers">
             {vip && (
@@ -193,7 +176,7 @@ export function Shop() {
                 <div className="offer-head">
                   <b>VIP набор</b>
                   <span className="chip gold">
-                    <Crown size={12} /> Макс. выгода
+                    <Crown size={12} /> Выгода
                   </span>
                 </div>
                 <div className="offer-body">
@@ -236,16 +219,13 @@ export function Shop() {
                 </div>
                 <ul className="offer-list small">
                   <li>
-                    <Crown size={14} /> Эксклюзивные награды
+                    <Crown size={14} /> 30 уровней наград
                   </li>
                   <li>
                     <StarIcon size={14} /> Звёзды и осколки
                   </li>
                   <li>
                     <Helmet size={14} style={{ color: '#9fdcff' }} /> Уникальный скин
-                  </li>
-                  <li>
-                    <Trophy size={14} /> Особые задания
                   </li>
                 </ul>
                 <span className="offer-pass-art" aria-hidden>
@@ -276,9 +256,8 @@ export function Shop() {
                     </span>
                     <span className="pop-body">
                       <b>{p.title}</b>
-                      <span className="sub">{p.subtitle}</span>
                       <span className="price-btn">
-                        {p.available ? <PriceTag price={p.price} /> : 'Куплено'} <ChevronRight size={13} />
+                        {p.available ? <PriceTag price={p.price} /> : 'Куплено'}
                       </span>
                     </span>
                   </button>
@@ -291,12 +270,7 @@ export function Shop() {
 
       {products && tab === 'energy' && (
         <>
-          <div className="section-head">
-            <div>
-              <h2 className="h-section">Энергия и ресурсы</h2>
-              <div className="sub">Покупается за звёзды. Энергия сверх лимита сохраняется.</div>
-            </div>
-          </div>
+          <div className="section-note">Энергия сверх лимита сохраняется</div>
           <div className="col">
             {byTab('energy').map((p) => (
               <ProductRow key={p.productId} p={p} />
@@ -307,12 +281,7 @@ export function Shop() {
 
       {products && tab === 'skins' && (
         <>
-          <div className="section-head">
-            <div>
-              <h2 className="h-section">Скины</h2>
-              <div className="sub">Только внешний вид — никакого преимущества в забеге.</div>
-            </div>
-          </div>
+          <div className="section-note">Только внешний вид — без преимуществ</div>
           <div className="skin-grid">
             {cfg.skins.map((s) => {
               const owned = profile.ownedSkins.includes(s.id);
@@ -352,7 +321,7 @@ export function Shop() {
             <div className="h-display" style={{ fontSize: 24 }}>
               {profile.pass.name}
             </div>
-            <div className="sub">Премиум-дорожка: 30 уровней наград, скин «Золотой легион» на 30 уровне.</div>
+            <div className="sub">30 уровней наград + эксклюзивный скин</div>
             <div className="row mt-s" style={{ gap: 8 }}>
               {pass.available ? (
                 <Btn variant="gold" onClick={() => openModal({ type: 'purchase', productId: pass.productId })}>
@@ -368,9 +337,6 @@ export function Shop() {
           </div>
         </div>
       )}
-      <div className="sub center mt" style={{ fontSize: 11 }}>
-        <CurrencyIcon kind="stars" size={12} /> Все покупки подтверждаются сервером и начисляются один раз.
-      </div>
     </div>
   );
 }

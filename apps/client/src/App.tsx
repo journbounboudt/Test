@@ -53,7 +53,7 @@ function BootScreen() {
       {state === 'maintenance' && (
         <div className="panel boot-card">
           <b>Технические работы</b>
-          <div className="sub">Мы улучшаем порталы. Загляните чуть позже — прогресс в безопасности.</div>
+          <div className="sub">Скоро вернёмся. Прогресс сохранён.</div>
           <Btn variant="cyan" onClick={() => void boot()}>
             Проверить снова
           </Btn>
@@ -62,13 +62,13 @@ function BootScreen() {
       {state === 'outdated' && (
         <div className="panel boot-card">
           <b>Доступно обновление</b>
-          <div className="sub">Эта версия игры устарела. Перезагрузите, чтобы продолжить.</div>
+          <div className="sub">Перезагрузите, чтобы продолжить</div>
           <Btn variant="gold" onClick={() => location.reload()}>
             Обновить
           </Btn>
         </div>
       )}
-      <div className="boot-foot side-note">60 секунд. Один забег. Большой лут.</div>
+      <div className="boot-foot">60 секунд. Один забег. Большой лут.</div>
     </div>
   );
 }

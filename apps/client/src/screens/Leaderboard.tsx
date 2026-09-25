@@ -1,17 +1,15 @@
-import { ChevronRight, Gift, Share2, Trophy as TrophyL, Users } from 'lucide-react';
+import { Gift, Share2, Trophy as TrophyL, Users } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 import type { LeaderboardView } from '../api/types';
 import { track } from '../analytics';
 import { tg } from '../platform/telegram';
 import { claimWeekly, fetchLeaderboard, handleError } from '../state/actions';
 import { useStore } from '../state/store';
-import { Avatar, BackBar, Btn, Cta, Img, Logo, RewardList, TopBar, click, useServerNow } from '../ui/common';
+import { Avatar, BackBar, Btn, Cta, Img, RewardList, TopBar, click, useServerNow } from '../ui/common';
 import { Crown, CurrencyIcon, Shard, StarIcon, Stopwatch } from '../ui/icons';
 import { durationLong, fmt } from '../ui/format';
 
 type Tab = 'top' | 'friends' | 'rewards';
-
-const TITLES = ['Легенда Пустоты', 'Бесконечный бегун', 'Рождён в Пустоте', 'Скорость — жизнь', 'Ближе к звёздам', 'Охотник за порталами', 'Тень потока'];
 
 function RankBadge({ rank }: { rank: number }) {
   if (rank === 1) return <Crown size={28} />;
@@ -60,36 +58,14 @@ export function Leaderboard() {
           <div className="row kicker" style={{ color: '#9fdcff', gap: 6 }}>
             <TrophyL size={16} color="#ffc53d" /> Недельный турнир
           </div>
-          <Logo size={40} className="lb-logo" />
-          <b className="lb-tagline">Беги. Улучшай. Стань легендой.</b>
-          <div className="lb-desc">
-            Короткие забеги. Большие награды.
-            <br />
-            Покажи, на что ты способен за 60 секунд!
-          </div>
+          <h1 className="h-display lb-title">Кто дальше?</h1>
           <div className="panel cyan countdown-box">
-            <Stopwatch size={26} />
+            <Stopwatch size={24} />
             <span>
-              <span className="tiny">До конца турнира</span>
+              <span className="tiny">До конца</span>
               <b className="num">{data ? durationLong(data.endsAt - now) : '—'}</b>
             </span>
           </div>
-        </div>
-        <div className="side-note lb-note">
-          Лучшие
-          <br />
-          бегут
-          <br />
-          дальше
-          <i className="note-rule" />
-          <br />
-          Одна
-          <br />
-          минута
-          <br />
-          решает
-          <br />
-          всё
         </div>
       </section>
 
@@ -151,7 +127,7 @@ export function Leaderboard() {
                 <Avatar url={r.avatarUrl} name={r.name} skin={r.skin} size="sm" />
                 <span>
                   <b>{r.name}</b>
-                  <small>{r.me ? `Ур. ${r.level}` : TITLES[(r.rank - 1) % TITLES.length]}</small>
+                  {r.me && <small>Это ты</small>}
                 </span>
               </span>
               <b className="num lb-score">{fmt(r.score)}</b>
@@ -175,7 +151,7 @@ export function Leaderboard() {
                   <Avatar url={p.avatarUrl} name={p.displayName} skin={p.selectedSkin} size="sm" />
                   <span>
                     <b>{p.displayName}</b>
-                    <small>{data.me.rank ? `Ур. ${p.level}` : 'Ещё нет забегов'}</small>
+                    <small>{data.me.rank ? 'Это ты' : 'Нет забегов'}</small>
                   </span>
                 </span>
                 <b className="num lb-score">{fmt(data.me.score)}</b>
@@ -193,33 +169,23 @@ export function Leaderboard() {
         </div>
       )}
 
-      <div className="panel week-rewards">
-        <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-          <b className="row caps" style={{ gap: 6, color: '#9fdcff' }}>
-            <Gift size={16} color="#ffc53d" /> Награды недели
-          </b>
-          {tab !== 'rewards' && (
-            <button className="sub row" onClick={() => setTab('rewards')}>
-              Смотреть все <ChevronRight size={14} />
-            </button>
-          )}
-        </div>
-        <div className={tab === 'rewards' ? 'tier-list' : 'tier-strip'}>
-          {cfg.leaderboard.tiers
-            .filter((t) => tab === 'rewards' || t.id !== 'top3')
-            .map((t) => (
+      {tab === 'rewards' && (
+        <div className="panel week-rewards">
+          <div className="tier-list">
+            {cfg.leaderboard.tiers.map((t) => (
               <div key={t.id} className={`tier ${t.id === 'top1' ? 'gold' : t.id === 'top10' ? 'violet' : ''} ${data?.me.tierId === t.id ? 'mine' : ''}`}>
                 <b className="tier-label">{t.label}</b>
                 <span className="tier-art-wrap">
                   <TierArt reward={t.reward} />
                 </span>
                 <span className="tier-desc">{t.description}</span>
-                {tab === 'rewards' && <RewardList bundle={t.reward} size={14} />}
+                <RewardList bundle={t.reward} size={14} />
               </div>
             ))}
+          </div>
+          <div className="sub mt-s">Начисляются после конца недели</div>
         </div>
-        {tab === 'rewards' && <div className="sub mt-s">Засчитываются только забеги, подтверждённые сервером. Награды начисляются после окончания недели.</div>}
-      </div>
+      )}
 
       <div className="mt">
         <Cta onClick={() => navigate('routes')}>Принять вызов</Cta>

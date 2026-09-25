@@ -40,7 +40,7 @@ export function MissionRow({ m, period }: { m: MissionView; period: 'daily' | 'w
   const busy = useStore((s) => s.busy[`mission:${m.id}`]);
   const main = rewardEntries(m.reward).find((e) => e.key !== 'passXp') ?? rewardEntries(m.reward)[0];
   return (
-    <div className={`panel mission ${m.claimable ? 'gold' : ''}`}>
+    <div className={`panel mission ${m.claimable ? 'gold' : m.claimed ? 'done' : ''}`}>
       <div className="mission-ico">{METRIC_ICON[m.metric] ?? <Target size={30} />}</div>
       <div className="grow">
         <div className="mission-title">{m.title}</div>
@@ -59,18 +59,14 @@ export function MissionRow({ m, period }: { m: MissionView; period: 'daily' | 'w
         <b className="num">+{main ? compact(main.amount) : ''}</b>
       </div>
       {m.claimed ? (
-        <span className="btn sm ghost mission-btn" aria-disabled>
-          Получено
+        <span className="mission-done" title="Получено">
+          <Check size={16} strokeWidth={3} />
         </span>
       ) : m.claimable ? (
         <Btn size="sm" variant="gold" className="mission-btn" loading={busy} onClick={() => void claimMission(period, m.id)}>
           Забрать
         </Btn>
-      ) : (
-        <span className="btn sm mission-btn" aria-disabled>
-          В процессе
-        </span>
-      )}
+      ) : null}
       </div>
     </div>
   );
@@ -131,24 +127,9 @@ export function Pass() {
           <h1 className="h-display" style={{ fontSize: 36 }}>
             {p.pass.name}
           </h1>
-          <div className="caps sub" style={{ color: '#dfe8ff' }}>
-            Отголоски остаются.
-            <br />
-            Беги дальше.
-          </div>
           <div className="panel time-chip">
             <Clock size={14} /> Осталось <b>{duration(p.pass.endAt - now)}</b>
           </div>
-        </div>
-        <div className="side-note" style={{ position: 'absolute', right: 10, top: 20, textAlign: 'right' }}>
-          Больше
-          <br />
-          забегов
-          <br />
-          <br />
-          больше
-          <br />
-          наград
         </div>
       </section>
 
@@ -157,7 +138,7 @@ export function Pass() {
           <span>{pass?.level ?? p.pass.level}</span>
         </div>
         <div className="grow">
-          <div className="tiny">Уровень сезона</div>
+          <div className="tiny">Уровень</div>
           <div className="row" style={{ gap: 8 }}>
             <div className="bar grow">
               <i style={{ width: `${pass ? (pass.xpIntoLevel / pass.xpPerLevel) * 100 : 0}%` }} />
@@ -220,7 +201,7 @@ export function Pass() {
           </button>
         </div>
         <div className="sub row mission-reset">
-          <Clock size={12} /> Обновление через {duration(resetAt - now)}
+          <Clock size={12} /> Сброс через {duration(resetAt - now)}
         </div>
       </div>
       <div className="col mt-s">
@@ -232,7 +213,6 @@ export function Pass() {
       {pass && !pass.premium && (
         <div className="mt">
           <Cta onClick={() => openModal({ type: 'purchase', productId: cfg.season.premiumProductId })}>Купить пропуск</Cta>
-          <div className="caption-line">больше наград. больше возможностей.</div>
         </div>
       )}
     </div>

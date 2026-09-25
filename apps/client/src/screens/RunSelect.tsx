@@ -3,8 +3,8 @@ import { useEffect, useRef } from 'react';
 import { isUnlocked, type RouteId } from '@void-rush/shared';
 import { startRun } from '../state/actions';
 import { useStore } from '../state/store';
-import { Cta, Img, Logo, TopBar, click } from '../ui/common';
-import { Bolt, CurrencyIcon, Road, Trophy } from '../ui/icons';
+import { Cta, Img, TopBar, click } from '../ui/common';
+import { Bolt, CurrencyIcon, Trophy } from '../ui/icons';
 import { fmt } from '../ui/format';
 
 const REWARD_TONE: Record<string, string> = { credits: 'gold', pass: 'gold', shards: 'violet', module: 'violet', fragment: 'violet', xp: 'cyan', mystery: 'grey' };
@@ -39,14 +39,11 @@ export function RouteCard({ id, selected, onSelect }: { id: RouteId; selected: b
       </div>
       <div className="route-info">
         <b className="route-title">{r.name}</b>
-        <span className="route-desc">{unlocked ? r.tagline : r.unlockText}</span>
-        <div className="route-rewards">
-          <span className="tiny">{unlocked ? 'Награды' : 'Возможные награды'}</span>
-          <div className="route-reward-row">
-            {r.rewardIcons.map((ic) => (
-              <RewardTile key={ic} kind={ic} />
-            ))}
-          </div>
+        {selected && unlocked && <span className="route-desc">{r.tagline}</span>}
+        <div className="route-reward-row">
+          {r.rewardIcons.map((ic) => (
+            <RewardTile key={ic} kind={ic} />
+          ))}
         </div>
       </div>
     </button>
@@ -75,18 +72,8 @@ export function RunSelect() {
     <div className="screen routes">
       <TopBar />
       <header className="routes-head">
-        <Logo size={44} />
         <h1 className="h-display routes-title">Выбор забега</h1>
-        <div className="routes-sub">Каждый забег длится около 60 секунд.</div>
-        <div className="side-note routes-note">
-          Короткие
-          <br />
-          забеги,
-          <br />
-          большие
-          <br />
-          награды
-        </div>
+        <div className="routes-sub">Каждый забег ≈ 60 секунд</div>
       </header>
 
       <div className="hscroll route-list" ref={listRef}>
@@ -108,43 +95,27 @@ export function RunSelect() {
           <Img src={`/art/route-${selected}.webp`} className="fill" />
         </div>
         <div className="route-detail-body">
-          <div className="rd-head">
-            <b className="route-detail-title">{route.name}</b>
-            <span className={`chip ${route.difficulty}`}>{route.difficultyLabel}</span>
-          </div>
-          <div className="sub">{route.tagline}</div>
+          <b className="route-detail-title">{route.name}</b>
           <div className="detail-stats">
             <div className="ds-cell">
-              <Trophy size={26} />
-              <span>
-                <span className="tiny">Лучший результат</span>
+              <span className="tiny">Рекорд</span>
+              <span className="ds-val">
+                <Trophy size={20} />
                 <b className="num">{best ? fmt(best.score) : '—'}</b>
               </span>
             </div>
-            <div className="ds-cell">
-              <Road size={22} />
-              <span>
-                <span className="tiny">Дистанция</span>
-                <b className="num">{best ? `${fmt(best.distance)} м` : '—'}</b>
+            <div className={`ds-cell energy-cost ${energyShort ? 'short' : ''}`}>
+              <span className="tiny">Энергия</span>
+              <span className="ds-val">
+                <Bolt size={20} />
+                <b className="num">{route.energyCost}</b>
               </span>
             </div>
           </div>
-          <div className="detail-bottom">
-            <div className="grow">
-              <div className="tiny">Ожидаемые награды</div>
-              <div className="route-reward-row" style={{ marginTop: 5 }}>
-                {route.rewardIcons.map((ic) => (
-                  <RewardTile key={ic} kind={ic} size={24} big />
-                ))}
-              </div>
-            </div>
-            <div className={`energy-cost ${energyShort ? 'short' : ''}`}>
-              <div className="tiny">Энергия</div>
-              <div className="ec-val">
-                <Bolt size={26} />
-                <b className="num">{route.energyCost}</b>
-              </div>
-            </div>
+          <div className="route-reward-row">
+            {route.rewardIcons.map((ic) => (
+              <RewardTile key={ic} kind={ic} size={22} big />
+            ))}
           </div>
         </div>
         <div className="rd-cta">
