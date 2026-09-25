@@ -50,6 +50,8 @@ npm run build            # production client build → apps/client/dist
 npm run survival -- 50   # wide survivability + score calibration sweep
 ```
 
+A GitHub Actions workflow that runs typecheck, tests and build is at `docs/ci-workflow.yml`. Move it to `.github/workflows/ci.yml` to enable it.
+
 ## Configuration
 
 See `.env.example`. The most important variables are:
