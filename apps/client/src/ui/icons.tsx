@@ -177,6 +177,47 @@ export const Portal = (p: P) =>
     'rgba(155,92,255,.7)',
   );
 
+export const Road = (p: P) =>
+  svg(
+    <>
+      <path d="M9 2.5 3 21.5h7.2L11 16h2l.8 5.5H21L15 2.5z" fill="url(#g-cyan)" opacity=".35" />
+      <path d="M9 2.5 3 21.5M15 2.5l6 19M12 3v3M12 9v3.5M12 16v4" stroke="url(#g-cyan)" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+    </>,
+    p,
+    'rgba(53,215,255,.6)',
+  );
+export const Stopwatch = (p: P) =>
+  svg(
+    <>
+      <circle cx="12" cy="13.5" r="8" fill="none" stroke="url(#g-cyan)" strokeWidth="1.8" />
+      <path d="M12 13.5V9M9.5 2.5h5M12 2.5v3M18.5 6l1.5-1.5" stroke="url(#g-cyan)" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+    </>,
+    p,
+    'rgba(53,215,255,.5)',
+  );
+export const PassCard = (p: P) =>
+  svg(
+    <>
+      <rect x="4.5" y="2" width="15" height="20" rx="2.2" fill="url(#g-dark)" stroke="url(#g-star)" strokeWidth="1.4" />
+      <rect x="6.6" y="4.1" width="10.8" height="15.8" rx="1.2" fill="none" stroke="#ffc53d" strokeOpacity=".45" strokeWidth=".6" />
+      <path d="M7.8 14.2h8.4l.6-5.4-2.8 2-2-3.2-2 3.2-2.8-2z" fill="url(#g-star)" stroke="#fff1b0" strokeWidth=".5" strokeLinejoin="round" />
+      <path d="M8 16h8" stroke="#ffc53d" strokeWidth=".9" />
+    </>,
+    p,
+    'rgba(255,180,50,.8)',
+  );
+export const Battery = (p: P) =>
+  svg(
+    <>
+      <rect x="9" y="1.5" width="6" height="2.5" rx=".8" fill="#9fb6d8" />
+      <rect x="5.5" y="3.6" width="13" height="19" rx="2.6" fill="url(#g-dark)" stroke="#bfe9ff" strokeWidth="1.1" />
+      <rect x="7.4" y="5.6" width="9.2" height="15" rx="1.6" fill="#0a2a55" />
+      <path d="M13.2 7 8.6 14h3.1l-1 5.4 4.8-7.4h-3.2z" fill="url(#g-bolt)" stroke="#e8fbff" strokeWidth=".4" />
+    </>,
+    p,
+    'rgba(53,215,255,.8)',
+  );
+
 export function CurrencyIcon({ kind, size = 18 }: { kind: string; size?: number }) {
   switch (kind) {
     case 'credits':

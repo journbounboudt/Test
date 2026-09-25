@@ -1,5 +1,5 @@
 import { Img } from './common';
-import { Bolt, Coin, Crown, ReviveIcon, StarIcon } from './icons';
+import { Battery, Bolt, Chest, Coin, PassCard, ReviveIcon, StarIcon } from './icons';
 
 /** Product illustrations composed from the icon set and pre-rendered skin art. */
 export function ProductArt({ image, size = 84 }: { image: string; size?: number }) {
@@ -24,7 +24,7 @@ export function ProductArt({ image, size = 84 }: { image: string; size?: number 
     case 'stars-xl':
       return (
         <div className="pa" style={{ width: s, height: s }}>
-          <Img src="/art/chest.webp" className="pa-chest" />
+          <Chest size={s * 0.78} style={{ position: 'absolute', left: '11%', bottom: '2%' }} />
           <StarIcon size={s * 0.34} style={{ position: 'absolute', left: '14%', top: '8%' }} />
           <StarIcon size={s * 0.42} style={{ position: 'absolute', left: '36%', top: '0%' }} />
           <StarIcon size={s * 0.3} style={{ position: 'absolute', right: '10%', top: '12%' }} />
@@ -40,10 +40,8 @@ export function ProductArt({ image, size = 84 }: { image: string; size?: number 
     case 'energy-xl':
       return (
         <div className="pa battery" style={{ width: s, height: s }}>
-          <div className="battery-body">
-            <Bolt size={s * 0.5} />
-          </div>
-          {image === 'energy-xl' && <Bolt size={s * 0.3} style={{ position: 'absolute', right: 0, top: 0 }} />}
+          <Battery size={s * 0.92} />
+          {image === 'energy-xl' && <Bolt size={s * 0.34} style={{ position: 'absolute', right: 0, top: 0 }} />}
         </div>
       );
     case 'revive':
@@ -72,8 +70,8 @@ export function ProductArt({ image, size = 84 }: { image: string; size?: number 
       return <Img src="/art/skin-shadow_warden.webp" className="pa-vip" />;
     case 'pass':
       return (
-        <div className="pa pass-card" style={{ width: s * 0.8, height: s }}>
-          <Crown size={s * 0.45} />
+        <div className="pa pass-card" style={{ width: s, height: s }}>
+          <PassCard size={s} />
         </div>
       );
     default:

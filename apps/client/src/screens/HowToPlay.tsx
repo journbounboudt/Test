@@ -1,109 +1,147 @@
+import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { skipTutorial, startRun } from '../state/actions';
 import { useStore } from '../state/store';
 import { Cta, Img, Logo, TopBar, click } from '../ui/common';
-import { BoostIcon, Crown, MagnetIcon, ReviveIcon, ShieldIcon, Trophy, Bolt } from '../ui/icons';
+import { Battery, BoostIcon, MagnetIcon, PassCard, ReviveIcon, ShieldIcon, Trophy } from '../ui/icons';
 import { ShoppingCart } from 'lucide-react';
+
+function Step({ n, title, art, children, extra }: { n: number; title: string; art?: string; children: React.ReactNode; extra?: React.ReactNode }) {
+  return (
+    <div className={`panel howto-card ${art ? 'has-art' : ''}`}>
+      {art && <Img src={art} className="howto-bg" />}
+      <div className="howto-title">
+        <span className="step">{n}</span>
+        <span>{title}</span>
+      </div>
+      {extra}
+      <p>{children}</p>
+    </div>
+  );
+}
 
 export function HowToPlay() {
   const p = useStore((s) => s.profile)!;
+  const cfg = useStore((s) => s.config)!;
   const busy = useStore((s) => s.busy.startRun);
   const navigate = useStore((s) => s.navigate);
+  const back = useStore((s) => s.back);
+  const b = cfg.boosts;
+  const firstTime = !p.tutorialDone;
   return (
     <div className="screen howto">
       <TopBar />
       <header className="howto-head">
         <Logo size={46} />
-        <h1 className="h-display" style={{ fontSize: 32, marginTop: 6 }}>
-          Как играть?
-        </h1>
+        <h1 className="howto-h1">Как играть?</h1>
         <div className="tagline-rule">Просто. Быстро. Эпично.</div>
+        <div className="side-note howto-note">
+          Космос
+          <br />
+          ждёт
+          <br />
+          смелых
+        </div>
       </header>
       <div className="howto-grid">
-        <div className="panel howto-card">
-          <div className="howto-title">
-            <span className="step">1</span>Свайпай влево и вправо
-          </div>
-          <div className="howto-art art">
-            <Img src="/art/howto-swipe.webp" className="fill" />
-            <span className="swipe-arrows l">«</span>
-            <span className="swipe-arrows r">»</span>
-          </div>
-          <p>Уклоняйся от препятствий, чтобы не потерять забег.</p>
-        </div>
-        <div className="panel howto-card">
-          <div className="howto-title">
-            <span className="step">2</span>Собирай осколки
-          </div>
-          <div className="howto-art art">
-            <Img src="/art/howto-shards.webp" className="fill" />
-          </div>
-          <p>Собирай осколки, чтобы набирать очки и быстрее развиваться.</p>
-        </div>
-        <div className="panel howto-card">
-          <div className="howto-title">
-            <span className="step">3</span>Выбирай буст
-          </div>
-          <div className="boost-mini">
-            <div className="bm gold">
-              <BoostIcon size={26} />
-              <b>Скорость</b>
-              <span>+12%</span>
+        <Step
+          n={1}
+          title="Свайпай влево и вправо"
+          art="/art/howto-swipe.webp"
+          extra={
+            <div className="swipe-arrows" aria-hidden>
+              <ChevronsLeft size={40} strokeWidth={2.6} className="l" />
+              <ChevronsRight size={40} strokeWidth={2.6} className="r" />
             </div>
-            <div className="bm violet">
-              <MagnetIcon size={26} />
-              <b>Магнит</b>
-              <span>×1.8</span>
+          }
+        >
+          Уклоняйся от препятствий, чтобы не потерять забег.
+        </Step>
+        <Step n={2} title="Собирай осколки" art="/art/howto-shards.webp">
+          Осколки дают очки и ускоряют прокачку.
+        </Step>
+        <Step
+          n={3}
+          title="Выбирай буст"
+          extra={
+            <div className="boost-mini">
+              <div className="bm gold">
+                <BoostIcon size={28} />
+                <b>{b.speed.name}</b>
+                <span>+{Math.round(b.speed.value * 100)}%</span>
+              </div>
+              <div className="bm violet">
+                <MagnetIcon size={28} />
+                <b>{b.magnet.name}</b>
+                <span>×{b.magnet.value}</span>
+              </div>
+              <div className="bm cyan">
+                <ShieldIcon size={28} />
+                <b>{b.shield.name}</b>
+                <span>1 удар</span>
+              </div>
             </div>
-            <div className="bm cyan">
-              <ShieldIcon size={26} />
-              <b>Щит</b>
-              <span>1 удар</span>
-            </div>
-          </div>
-          <p>После чекпоинтов выбирай один из бустов, чтобы усилить свой забег.</p>
-        </div>
-        <div className="panel howto-card">
-          <div className="howto-title">
-            <span className="step">4</span>Добеги до финиша
-          </div>
-          <div className="howto-art art">
-            <Img src="/art/howto-finish.webp" className="fill" />
-          </div>
-          <p>Добеги до финишного портала, чтобы открыть сундук с наградами.</p>
-        </div>
+          }
+        >
+          На чекпоинтах выбирай один буст, чтобы усилить забег.
+        </Step>
+        <Step n={4} title="Добеги до финиша" art="/art/howto-finish.webp">
+          Прорвись в финишный портал и открой сундук с наградами.
+        </Step>
       </div>
       <div className="panel gold goal-banner">
-        <Trophy size={34} />
+        <span className="gb-ico">
+          <Trophy size={36} />
+        </span>
         <div>
           <b className="gold-text">Цель:</b> пройти как можно дальше за 60 секунд и набрать максимум очков.
         </div>
       </div>
       <div className="panel violet goal-banner">
-        <ShoppingCart size={30} color="#c07bff" />
+        <span className="gb-ico">
+          <ShoppingCart size={30} color="#c07bff" />
+        </span>
         <div className="grow">
           <b className="violet-text">Донат ускоряет прогресс:</b>
           <div className="sub">скины, пропуск, энергия, возрождения.</div>
         </div>
-        <div className="row" style={{ gap: 4 }}>
-          <Crown size={24} />
-          <Bolt size={24} />
-          <ReviveIcon size={24} />
+        <div className="gb-icons">
+          <PassCard size={28} />
+          <Battery size={28} />
+          <ReviveIcon size={28} />
         </div>
       </div>
-      <div className="mt">
-        <Cta variant="blue" loading={busy} onClick={() => void startRun('tutorial', { tutorial: true })}>
-          {p.tutorialDone ? 'Тренировка' : 'Начать'}
+      <div className="howto-cta">
+        <div className="side-note">
+          Быстрее
+          <br />
+          дальше
+          <br />
+          больше
+        </div>
+        <Cta variant="blue" small={!firstTime} loading={busy} onClick={() => void startRun('tutorial', { tutorial: true })}>
+          {firstTime ? 'Начать' : 'Тренировка'}
         </Cta>
+        <div className="side-note r">
+          Один
+          <br />
+          забег.
+          <br />
+          Больше
+          <br />
+          лута.
+        </div>
       </div>
       <button
         className="howto-link"
         onClick={() => {
           click();
-          if (!p.tutorialDone) void skipTutorial();
-          navigate('home');
+          if (firstTime) {
+            void skipTutorial();
+            navigate('routes', { replace: true });
+          } else back();
         }}
       >
-        {p.tutorialDone ? 'Назад' : 'Пропустить обучение'}
+        {firstTime ? 'Пропустить обучение' : 'Назад'}
       </button>
     </div>
   );

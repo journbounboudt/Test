@@ -6,7 +6,7 @@ import { claimEventMilestone, fetchEvent, handleError, startRun } from '../state
 import { useStore } from '../state/store';
 import { BackBar, Btn, Cta, Img, RewardList, TopBar, useServerNow } from '../ui/common';
 import { Bolt } from '../ui/icons';
-import { compact, durationLong, fmt } from '../ui/format';
+import { compact, durationLong, fmt, plural } from '../ui/format';
 
 export function EventLobby() {
   const p = useStore((s) => s.profile)!;
@@ -66,7 +66,7 @@ export function EventLobby() {
           </div>
           <div className="row sub" style={{ justifyContent: 'space-between', fontSize: 12 }}>
             <span className="row" style={{ gap: 4 }}>
-              <Users size={13} /> {fmt(ev.participants)} бегунов
+              <Users size={13} /> {fmt(ev.participants)} {plural(ev.participants, ['бегун', 'бегуна', 'бегунов'])}
             </span>
             <span>Нанесено {compact(ev.damage)} урона</span>
           </div>
@@ -112,7 +112,7 @@ export function EventLobby() {
                 Забрать
               </Btn>
             ) : (
-              <span className="sub">{m.reached ? 'Сыграй забег события' : 'Не достигнут'}</span>
+              <span className="sub">{m.reached ? 'Сыграй забег, чтобы забрать' : 'Ещё не достигнут'}</span>
             )}
           </div>
         ))}
@@ -125,7 +125,7 @@ export function EventLobby() {
           {ev.recent.map((r, i) => (
             <div key={i} className="feed-row">
               <span>{r.name}</span>
-              <b className="num red-text">-{compact(r.damage)}</b>
+              <b className="num red-text">−{compact(r.damage)}</b>
             </div>
           ))}
         </div>
@@ -144,17 +144,15 @@ export function EventLobby() {
 
       <div className="mt">
         {unlocked ? (
-          <Cta variant="purple" disabled={!ev.active} loading={busy} onClick={() => void startRun('event')}>
-            <span className="row" style={{ gap: 8 }}>
-              <Swords size={22} /> В бой
-            </span>
+          <Cta variant="purple" icon={<Swords size={24} />} disabled={!ev.active} loading={busy} onClick={() => void startRun('event')}>
+            В бой
           </Cta>
         ) : (
-          <div className="panel locked-note">Событие откроется на уровне 2</div>
+          <div className="locked-note">{p.level < 2 ? 'Событие откроется на уровне 2' : 'Событие пока недоступно'}</div>
         )}
         <div className="caption-line row" style={{ justifyContent: 'center', gap: 4 }}>
           {ev.me.freeAttemptsLeft > 0 ? (
-            'бесплатная попытка'
+            `${plural(ev.me.freeAttemptsLeft, ['осталась', 'осталось', 'осталось'])} ${ev.me.freeAttemptsLeft} ${plural(ev.me.freeAttemptsLeft, ['бесплатная попытка', 'бесплатные попытки', 'бесплатных попыток'])}`
           ) : (
             <>
               <Bolt size={12} /> {ev.energyCost} энергии за попытку

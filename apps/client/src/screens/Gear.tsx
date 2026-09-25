@@ -26,11 +26,11 @@ function SlotCard({ slot, highlight }: { slot: GearSlot; highlight: boolean }) {
     >
       <div className="gear-name">{cfg.gear[slot].name}</div>
       <div className="gear-body">
-        <GearIcon slot={slot} size={50} />
+        <GearIcon slot={slot} size={54} />
         <span className={`gear-up ${affordable ? 'on' : ''} ${!cost ? 'max' : ''}`}>{cost ? <ChevronsUp size={18} /> : 'MAX'}</span>
       </div>
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <b className="gear-lv">Lv. {level}</b>
+      <div className="gear-foot">
+        <b key={level} className="gear-lv num bump">Ур. {level}</b>
         <div className="pips">
           {Array.from({ length: max }, (_, i) => (
             <i key={i} className={i < level ? 'on' : ''} />
@@ -66,16 +66,14 @@ export function Gear() {
       <TopBar />
       <header className="gear-head">
         <div>
-          <h1 className="h-display" style={{ fontSize: 32 }}>
-            Снаряжение
-          </h1>
-          <div className="sub caps">Беги дальше. Становись сильнее.</div>
+          <h1 className="h-display gear-title">Снаряжение</h1>
+          <div className="gear-sub">Беги дальше. Становись сильнее.</div>
         </div>
         <div className="panel info-chip">
           <Info size={16} className="cyan-text" /> Лучшее снаряжение помогает бежать дальше
         </div>
       </header>
-      {highlight && <div className="coach center">Выбери слот со стрелкой и сделай первое улучшение</div>}
+      {highlight && plan.steps.length > 0 && <div className="coach center">Выбери слот со стрелкой и сделай первое улучшение</div>}
       <div className="gear-layout">
         <div className="gear-col">
           {left.map((s) => (
@@ -83,7 +81,10 @@ export function Gear() {
           ))}
         </div>
         <div className="gear-center">
-          <div className="gear-portal" />
+          <div className="gear-portal">
+            <i />
+            <i />
+          </div>
           <RunnerView skin={skin} />
           <div className="drag-hint">↻ крути бегуна</div>
         </div>
@@ -127,6 +128,7 @@ export function Gear() {
 
       {GEAR_SLOTS.length > 0 && f && (
         <button
+          key={f.id}
           className="panel violet skin-banner"
           onClick={() => {
             click();
@@ -135,9 +137,7 @@ export function Gear() {
         >
           <div className="skin-banner-text">
             <div className="kicker">{f.rarity === 'legendary' ? 'Легендарный скин' : 'Премиум скин'}</div>
-            <div className="h-display" style={{ fontSize: 24 }}>
-              {f.name}
-            </div>
+            <div className="h-display skin-banner-title">{f.name}</div>
             <div className="sub">{f.description}</div>
           </div>
           <Img src={`/art/skin-${f.id}.webp`} className="skin-banner-art" />
@@ -154,13 +154,10 @@ export function Gear() {
       </div>
 
       <div className="mt">
-        <Cta
-          disabled={plan.steps.length === 0}
-          onClick={() => openModal({ type: 'upgradeAll' })}
-        >
+        <Cta icon={<ChevronsUp size={26} strokeWidth={3} />} disabled={plan.steps.length === 0} onClick={() => openModal({ type: 'upgradeAll' })}>
           Улучшить всё
         </Cta>
-        {plan.steps.length === 0 && <div className="sub center mt-s">Не хватает ресурсов — беги за кредитами и осколками</div>}
+        {plan.steps.length === 0 && <div className="sub center mt-s">{GEAR_SLOTS.every((sl) => p.gear[sl] >= cfg.gear[sl].maxLevel) ? 'Всё снаряжение прокачано до максимума' : 'Не хватает ресурсов: беги за кредитами и осколками'}</div>}
       </div>
     </div>
   );

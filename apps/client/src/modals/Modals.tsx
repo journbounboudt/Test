@@ -10,7 +10,7 @@ import { Bolt, CurrencyIcon, Gift } from '../ui/icons';
 import { GearIcon } from '../ui/gearIcons';
 import { ProductArt } from '../ui/ProductArt';
 import { RunnerView } from '../ui/RunnerView';
-import { clock, fmt, REWARD_LABEL, rewardEntries } from '../ui/format';
+import { clock, fmt, pluralN, REWARD_LABEL, rewardEntries, RUNS } from '../ui/format';
 import { RewardCell } from '../screens/Pass';
 import { rarityLabel, sourceLabel } from '../screens/Shop';
 
@@ -64,10 +64,10 @@ function EnergyModal() {
         <h3 className="modal-title">{p.energy.value < 5 ? 'Недостаточно энергии' : 'Энергия'}</h3>
         <div className="energy-big num">
           {p.energy.value}
-          <span className="muted">/{p.energy.cap}</span>
+          {p.energy.value <= p.energy.cap && <span className="muted">/{p.energy.cap}</span>}
         </div>
         <div className="sub">
-          {p.energy.value >= p.energy.cap ? 'Энергия полная' : <span className="row" style={{ gap: 4, justifyContent: 'center' }}><Clock size={14} /> +1 через {clock(next)} · полное восстановление ~{Math.ceil(((p.energy.cap - p.energy.value) * p.energy.regenSec) / 60)} мин</span>}
+          {p.energy.value > p.energy.cap ? `Запас сверх лимита (${p.energy.cap}) — восстановление на паузе` : p.energy.value >= p.energy.cap ? 'Энергия полная' : <span className="row" style={{ gap: 4, justifyContent: 'center' }}><Clock size={14} /> +1 через {clock(next)} · полное восстановление ~{Math.ceil(((p.energy.cap - p.energy.value) * p.energy.regenSec) / 60)} мин</span>}
         </div>
         <div className="sub mt-s">Стандартный забег стоит {cfg.routes.neon.energyCost} энергии. Энергия восстанавливается сама.</div>
       </div>
@@ -242,7 +242,7 @@ function SettingsModal() {
     <Modal onClose={close}>
       <h3 className="modal-title">Профиль</h3>
       <div className="center sub">
-        {p.displayName} · Ур. {p.level} · {p.stats.runs} забегов · {p.stats.finishes} финишей
+        {p.displayName} · Ур. {p.level} · {pluralN(p.stats.runs, RUNS)} · {pluralN(p.stats.finishes, ['финиш', 'финиша', 'финишей'])}
       </div>
       <div className="mt">
         <Toggle label="Музыка" on={s.music} onChange={(v) => void saveSettings({ music: v })} />
@@ -448,11 +448,11 @@ function UpgradeModal({ slot }: { slot: import('@void-rush/shared').GearSlot }) 
         <div className="sub">{cfg.gear[slot].description}</div>
       </div>
       <div className="upgrade-levels">
-        <span className="lv">Lv. {level}</span>
+        <span className="lv">Ур. {level}</span>
         {after && (
           <>
             <ArrowRight size={20} className="cyan-text" />
-            <span className="lv next">Lv. {level + 1}</span>
+            <span className="lv next">Ур. {level + 1}</span>
           </>
         )}
       </div>
@@ -531,7 +531,7 @@ function UpgradeAllModal() {
               <GearIcon slot={slot as never} size={28} /> {cfg.gear[slot as keyof typeof cfg.gear].name}
             </span>
             <b>
-              Lv. {p.gear[slot as keyof typeof p.gear]} <ArrowRight size={12} /> <span className="green-text">Lv. {lv}</span>
+              {p.gear[slot as keyof typeof p.gear]} <ArrowRight size={12} /> <span className="green-text">Ур. {lv}</span>
             </b>
           </div>
         ))}
