@@ -2,7 +2,7 @@
  * Procedural WebAudio layer: synthwave music sequencer + SFX. No audio files to download,
  * which keeps Telegram startup light.
  */
-type Sfx = 'swipe' | 'pickup' | 'combo' | 'shield' | 'magnet' | 'ult' | 'telegraph' | 'hit' | 'soft' | 'near' | 'finish' | 'chest' | 'click' | 'upgrade' | 'purchase' | 'checkpoint' | 'countdown' | 'go' | 'break';
+type Sfx = 'swipe' | 'pickup' | 'combo' | 'shield' | 'magnet' | 'ult' | 'telegraph' | 'hit' | 'soft' | 'near' | 'finish' | 'chest' | 'click' | 'upgrade' | 'purchase' | 'checkpoint' | 'countdown' | 'go' | 'break' | 'pad' | 'alarm';
 type Track = 'menu' | 'run' | null;
 
 const A4 = 440;
@@ -234,6 +234,17 @@ class AudioEngine {
         break;
       case 'checkpoint':
         [0, 7, 12].forEach((n, i) => this.voice(midi(69 + n), t + i * 0.07, 0.3, { type: 'triangle', gain: 0.09 }));
+        break;
+      case 'pad':
+        this.voice(420, t, 0.3, { type: 'sawtooth', gain: 0.07, slideTo: 1600, cutoff: 3000 });
+        this.noiseHit(t, 0.3, { gain: 0.1, freq: 800, type: 'bandpass', sweepTo: 7000 });
+        break;
+      case 'alarm':
+        for (let i = 0; i < 3; i++) {
+          this.voice(620, t + i * 0.36, 0.17, { type: 'square', gain: 0.06, cutoff: 2200 });
+          this.voice(460, t + i * 0.36 + 0.18, 0.17, { type: 'square', gain: 0.06, cutoff: 2200 });
+        }
+        this.voice(55, t, 1.2, { type: 'sawtooth', gain: 0.25, cutoff: 400 });
         break;
       case 'countdown':
         this.voice(midi(69), t, 0.15, { type: 'square', gain: 0.06, cutoff: 2500 });

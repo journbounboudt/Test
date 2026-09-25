@@ -53,6 +53,7 @@ export function MissionRow({ m, period }: { m: MissionView; period: 'daily' | 'w
           </span>
         </div>
       </div>
+      <div className="mission-side">
       <div className="mission-reward">
         {main && <CurrencyIcon kind={main.key} size={18} />}
         <b className="num">+{main ? compact(main.amount) : ''}</b>
@@ -70,6 +71,7 @@ export function MissionRow({ m, period }: { m: MissionView; period: 'daily' | 'w
           В процессе
         </span>
       )}
+      </div>
     </div>
   );
 }
@@ -160,9 +162,7 @@ export function Pass() {
             <div className="bar grow">
               <i style={{ width: `${pass ? (pass.xpIntoLevel / pass.xpPerLevel) * 100 : 0}%` }} />
             </div>
-            <span className="sub num">
-              {pass ? `${fmt(pass.xpIntoLevel)} / ${fmt(pass.xpPerLevel)} XP` : ''}
-            </span>
+            <span className="sub num pass-xp">{pass ? `${fmt(pass.xpIntoLevel)} / ${fmt(pass.xpPerLevel)} XP` : ''}</span>
           </div>
         </div>
         <Btn
@@ -208,8 +208,8 @@ export function Pass() {
         </div>
       )}
 
-      <div className="row mt" style={{ gap: 8 }}>
-        <div className="tabs grow" style={{ maxWidth: 300 }}>
+      <div className="mission-head mt">
+        <div className="tabs">
           <button className={`tab ${tab === 'daily' ? 'on' : ''}`} onClick={() => setTab('daily')}>
             <Sun size={18} /> Дневные
             {p.missions.daily.some((m) => m.claimable) && <i className="badge-dot" />}
@@ -219,7 +219,7 @@ export function Pass() {
             {p.missions.weekly.some((m) => m.claimable) && <i className="badge-dot" />}
           </button>
         </div>
-        <div className="sub row" style={{ gap: 4, fontSize: 11, marginLeft: 'auto' }}>
+        <div className="sub row mission-reset">
           <Clock size={12} /> Обновление через {duration(resetAt - now)}
         </div>
       </div>

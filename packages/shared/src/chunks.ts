@@ -17,6 +17,10 @@ export type Mine = [beat: number, a: number, b: number, period: number];
 export type Pulse = [beat: number, open: number | 'r'];
 /** [beat, lanes pattern 'HH.', lengthSec] missing floor */
 export type Hole = [beat: number, lanes: string, len: number];
+/** [beat, openLane | 'r'] ring gate whose gap rotates into place as the Runner approaches */
+export type Rotor = [beat: number, open: number | 'r'];
+/** [beat, lane | 'r', count, gapSec] chevron boost pads on the floor */
+export type Pad = [beat: number, lane: number | 'r', count: number, gap: number];
 
 export interface ChunkDef {
   id: string;
@@ -30,12 +34,16 @@ export interface ChunkDef {
   mines?: Mine[];
   pulses?: Pulse[];
   holes?: Hole[];
+  rotors?: Rotor[];
+  pads?: Pad[];
   /** Auto-place a shard trail along a safe path (default true). */
   trail?: boolean;
   /** Extra beats after the last element. */
   tail?: number;
   /** Only used when explicitly requested (script / checkpoint). */
   special?: boolean;
+  /** Only placed during a route's climax window (mini-boss attack). */
+  climax?: boolean;
   hint?: 'swipe' | 'shards' | 'gadget' | 'charge';
 }
 
@@ -43,6 +51,7 @@ export const CHUNKS: ChunkDef[] = [
   { id: 'rest', d: 0, tags: ['shards'], lines: [[0, 'r', 7, 0.12]], trail: false, tail: 0.2 },
   { id: 'shard_line', d: 1, tags: ['shards'], lines: [[0, 'r', 10, 0.1]], trail: false },
   { id: 'shard_weave', d: 1, tags: ['shards'], lines: [[0, 0, 4, 0.1], [0.55, 1, 4, 0.1], [1.1, 2, 4, 0.1]], trail: false },
+  { id: 'boost_lane', d: 1, tags: ['shards'], pads: [[0, 'r', 3, 0.28]], lines: [[0.1, 'r', 8, 0.1]], trail: false },
   { id: 'bonus_arc', d: 1, tags: ['shards'], lines: [[0, 1, 3, 0.1], [0.4, 'r', 1, 0.1, 'c'], [0.6, 1, 4, 0.1], [1.1, 'r', 1, 0.1, 'b']], trail: false },
   { id: 'single_c', d: 1, tags: ['static'], rows: [[0, '.X.']] },
   { id: 'single_side', d: 1, tags: ['static'], rows: [[0, 'X..']] },
@@ -62,6 +71,8 @@ export const CHUNKS: ChunkDef[] = [
   { id: 'laser_zig', d: 3, tags: ['laser'], rows: [[0, '.LL'], [0.85, 'LL.']] },
   { id: 'pulse_wall', d: 3, tags: ['moving'], pulses: [[0, 'r']] },
   { id: 'hole_zig', d: 3, tags: ['holes'], holes: [[0, 'HH.', 0.6], [1.15, '.HH', 0.6]] },
+  { id: 'rotor_gate', d: 3, tags: ['moving'], rotors: [[0, 'r']] },
+  { id: 'rotor_pad', d: 3, tags: ['moving'], rotors: [[0.9, 'r']], pads: [[0, 1, 2, 0.28]] },
   { id: 'block_wall', d: 3, tags: ['static'], rows: [[0, 'XX.'], [0.9, '.XX']] },
   { id: 'mine_block', d: 3, tags: ['moving', 'static'], mines: [[0, 1, 2, 1.3]], rows: [[1.0, 'X..']] },
   { id: 'bridge_crumble', d: 3, tags: ['holes', 'debris'], themes: ['bridge', 'secret'], holes: [[0, 'H..', 1.1]], rows: [[0.3, '..D'], [1.3, '.X.']] },
@@ -70,9 +81,15 @@ export const CHUNKS: ChunkDef[] = [
   { id: 'laser_gate', d: 4, tags: ['laser', 'static'], rows: [[0, 'LL.'], [0.75, '.GG'], [1.5, 'L.L']] },
   { id: 'pulse_double', d: 4, tags: ['moving'], pulses: [[0, 0], [1.35, 2]] },
   { id: 'hole_run', d: 4, tags: ['holes'], holes: [[0, 'H.H', 0.8], [1.2, 'HH.', 0.6]] },
+  { id: 'rotor_double', d: 4, tags: ['moving'], rotors: [[0, 'r'], [1.2, 'r']] },
   { id: 'gauntlet', d: 5, tags: ['static', 'laser'], rows: [[0, 'X..'], [0.55, '.L.'], [1.1, '..X'], [1.65, '.L.'], [2.2, 'X..']] },
   { id: 'rift_storm', d: 5, tags: ['moving', 'laser'], themes: ['rift', 'secret', 'event'], mines: [[0, 0, 1, 1.2]], rows: [[0.9, '.LL'], [1.7, 'GG.']] },
   { id: 'bridge_fall', d: 5, tags: ['holes', 'debris'], themes: ['bridge', 'secret'], holes: [[0, 'HH.', 0.6], [0.95, '.HH', 0.6]], rows: [[1.9, 'D.X']] },
+
+  { id: 'boss_rain', d: 3, tags: ['boss'], climax: true, rows: [[0, 'D.D'], [0.45, '.D.'], [0.9, 'D.D'], [1.35, '.X.']] },
+  { id: 'boss_barrage', d: 4, tags: ['boss'], climax: true, rows: [[0, 'LL.'], [0.7, 'D.D'], [1.4, '.LL']] },
+  { id: 'boss_sweep', d: 4, tags: ['boss'], climax: true, rotors: [[0, 'r']], rows: [[0.8, 'D..'], [1.2, '..D']] },
+  { id: 'boss_slam', d: 5, tags: ['boss'], climax: true, rows: [[0, 'XX.'], [0.55, 'D.D'], [1.1, '.XX'], [1.65, 'D.D']] },
 
   { id: 'checkpoint', d: 0, tags: [], special: true, lines: [[0.3, 1, 8, 0.1]], trail: false, tail: 1.6 },
   { id: 'tut_swipe', d: 0, tags: [], special: true, hint: 'swipe', rows: [[1.2, '.X.']], lines: [[0, 1, 4, 0.12]], tail: 0.6 },

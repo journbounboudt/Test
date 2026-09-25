@@ -37,6 +37,7 @@ export interface SimConfig {
   finishRunSec: number;
   pulseWallSpeed: number;
   pulseActivateSec: number;
+  pad: { durationSec: number; speedMult: number; points: number; ultCharge: number };
   score: { perMeter: number; shard: number; credit: number; boostCharge: number; eventCore: number; nearMiss: number; smash: number; finishBonus: number };
   /** Lookahead used by the generator, metres. */
   generateAhead: number;
@@ -69,6 +70,8 @@ export interface RouteConfig {
   unlockRule: UnlockRule;
   unlockText: string;
   rewardIcons: ('credits' | 'shards' | 'xp' | 'module' | 'pass' | 'fragment' | 'mystery')[];
+  /** Last `lastSec` seconds become a mini-boss attack using climax chunks. */
+  climax?: { lastSec: number; name: string };
   /** Hard hits behave like soft hits. */
   forgiving?: boolean;
   eventCores?: boolean;
@@ -259,7 +262,7 @@ const passRewards = (): PassLevelReward[] => {
 };
 
 export const DEFAULT_CONFIG: RemoteConfig = {
-  version: '2026.09.1',
+  version: '2026.10.0',
   minClientVersion: '1.0.0',
   maintenance: false,
   sim: {
@@ -284,6 +287,7 @@ export const DEFAULT_CONFIG: RemoteConfig = {
     finishRunSec: 1.4,
     pulseWallSpeed: 9,
     pulseActivateSec: 1.6,
+    pad: { durationSec: 1.4, speedMult: 1.14, points: 60, ultCharge: 0.06 },
     score: { perMeter: 10, shard: 25, credit: 60, boostCharge: 80, eventCore: 120, nearMiss: 150, smash: 40, finishBonus: 10000 },
     generateAhead: 240,
   },
@@ -300,14 +304,14 @@ export const DEFAULT_CONFIG: RemoteConfig = {
       durationSec: 60,
       energyCost: 5,
       speedCurve: [[0, 24], [15, 30], [30, 35], [45, 40], [55, 45], [60, 50]],
-      timingScale: 1.1,
-      difficultyRamp: [[0, 0, 1], [0.22, 1, 2], [0.5, 1, 3], [0.75, 2, 3], [0.9, 2, 4]],
+      timingScale: 1.0,
+      difficultyRamp: [[0, 0, 1], [0.2, 1, 2], [0.45, 1, 3], [0.7, 2, 3], [0.88, 2, 4]],
       tagWeights: { static: 1.6, laser: 1.2, moving: 0.5, holes: 0.4, debris: 0.8, shards: 1.4 },
       checkpointTimes: [15, 30, 45],
       scoreModifier: 1,
       rewardMultiplier: 1,
-      rewards: { baseCredits: 300, creditsPerScore: 0.02, xp: 120, passXp: 120, fragmentChance: 0, reviveTokenChance: 0.04 },
-      gradeThresholds: [22000, 40000, 60000, 80000],
+      rewards: { baseCredits: 300, creditsPerScore: 0.014, xp: 120, passXp: 120, fragmentChance: 0, reviveTokenChance: 0.04 },
+      gradeThresholds: [38000, 59000, 81000, 100000],
       unlockRule: { type: 'none' },
       unlockText: '',
       rewardIcons: ['credits', 'shards', 'xp'],
@@ -324,14 +328,14 @@ export const DEFAULT_CONFIG: RemoteConfig = {
       durationSec: 60,
       energyCost: 6,
       speedCurve: [[0, 26], [15, 32], [30, 38], [45, 43], [55, 48], [60, 53]],
-      timingScale: 1,
-      difficultyRamp: [[0, 1, 2], [0.22, 1, 3], [0.5, 2, 4], [0.75, 2, 4], [0.9, 3, 4]],
+      timingScale: 0.8,
+      difficultyRamp: [[0, 1, 2], [0.18, 1, 3], [0.4, 2, 4], [0.65, 2, 4], [0.85, 3, 5]],
       tagWeights: { static: 1, laser: 1, moving: 1.8, holes: 0.7, debris: 1, shards: 1 },
       checkpointTimes: [15, 30, 45],
       scoreModifier: 1.3,
       rewardMultiplier: 1.3,
-      rewards: { baseCredits: 450, creditsPerScore: 0.022, xp: 170, passXp: 160, fragmentChance: 0.08, reviveTokenChance: 0.06 },
-      gradeThresholds: [30000, 55000, 80000, 110000],
+      rewards: { baseCredits: 450, creditsPerScore: 0.015, xp: 170, passXp: 160, fragmentChance: 0.08, reviveTokenChance: 0.06 },
+      gradeThresholds: [56000, 87000, 120000, 148000],
       unlockRule: { type: 'level', level: 3 },
       unlockText: 'Откроется на уровне 3',
       rewardIcons: ['credits', 'shards', 'module'],
@@ -348,16 +352,17 @@ export const DEFAULT_CONFIG: RemoteConfig = {
       durationSec: 60,
       energyCost: 8,
       speedCurve: [[0, 28], [15, 35], [30, 41], [45, 46], [55, 51], [60, 56]],
-      timingScale: 0.92,
-      difficultyRamp: [[0, 1, 2], [0.2, 2, 3], [0.45, 2, 4], [0.7, 3, 5], [0.9, 3, 5]],
+      timingScale: 0.64,
+      difficultyRamp: [[0, 1, 2], [0.15, 2, 3], [0.35, 2, 4], [0.6, 3, 5], [0.85, 3, 5]],
       tagWeights: { static: 1, laser: 0.9, moving: 1, holes: 2, debris: 1.6, shards: 0.8 },
       checkpointTimes: [15, 30, 45],
       scoreModifier: 1.6,
       rewardMultiplier: 1.6,
-      rewards: { baseCredits: 650, creditsPerScore: 0.024, xp: 240, passXp: 220, fragmentChance: 0.15, reviveTokenChance: 0.08 },
-      gradeThresholds: [40000, 72000, 105000, 140000],
+      rewards: { baseCredits: 650, creditsPerScore: 0.015, xp: 240, passXp: 220, fragmentChance: 0.15, reviveTokenChance: 0.08 },
+      gradeThresholds: [74000, 115000, 158000, 195000],
       unlockRule: { type: 'level', level: 6 },
       unlockText: 'Откроется на уровне 6',
+      climax: { lastSec: 9, name: 'Страж моста' },
       rewardIcons: ['shards', 'pass', 'xp'],
       pickupRates: { credit: 0.045, boostCharge: 0.02, eventCore: 0 },
       competitive: true,
@@ -372,16 +377,17 @@ export const DEFAULT_CONFIG: RemoteConfig = {
       durationSec: 65,
       energyCost: 10,
       speedCurve: [[0, 30], [15, 37], [30, 43], [45, 48], [55, 53], [65, 58]],
-      timingScale: 0.88,
-      difficultyRamp: [[0, 2, 3], [0.2, 2, 4], [0.45, 3, 5], [0.7, 3, 5], [0.9, 4, 5]],
+      timingScale: 0.58,
+      difficultyRamp: [[0, 1, 3], [0.15, 2, 4], [0.35, 3, 5], [0.6, 3, 5], [0.85, 4, 5]],
       tagWeights: { static: 1, laser: 1.2, moving: 1.4, holes: 1.4, debris: 1.2, shards: 1 },
       checkpointTimes: [15, 30, 45],
       scoreModifier: 2,
       rewardMultiplier: 2,
-      rewards: { baseCredits: 900, creditsPerScore: 0.026, xp: 320, passXp: 300, fragmentChance: 0.5, reviveTokenChance: 0.1 },
-      gradeThresholds: [55000, 95000, 140000, 185000],
+      rewards: { baseCredits: 900, creditsPerScore: 0.016, xp: 320, passXp: 300, fragmentChance: 0.5, reviveTokenChance: 0.1 },
+      gradeThresholds: [124000, 192000, 263000, 325000],
       unlockRule: { type: 'all', rules: [{ type: 'level', level: 10 }, { type: 'routeFinished', routeId: 'bridge' }] },
       unlockText: 'Уровень 10 и финиш «Сломанного моста»',
+      climax: { lastSec: 10, name: 'Эхо Колосса' },
       rewardIcons: ['fragment', 'mystery', 'shards'],
       pickupRates: { credit: 0.05, boostCharge: 0.025, eventCore: 0 },
       competitive: true,
@@ -396,14 +402,14 @@ export const DEFAULT_CONFIG: RemoteConfig = {
       durationSec: 60,
       energyCost: 5,
       speedCurve: [[0, 26], [15, 32], [30, 37], [45, 42], [55, 47], [60, 52]],
-      timingScale: 1,
-      difficultyRamp: [[0, 1, 2], [0.25, 1, 3], [0.5, 2, 3], [0.8, 2, 4]],
+      timingScale: 0.86,
+      difficultyRamp: [[0, 1, 2], [0.2, 1, 3], [0.45, 2, 4], [0.75, 3, 4]],
       tagWeights: { static: 1, laser: 1.3, moving: 1.2, holes: 0.8, debris: 1.5, shards: 1 },
       checkpointTimes: [20, 40],
       scoreModifier: 1.2,
       rewardMultiplier: 1.2,
-      rewards: { baseCredits: 400, creditsPerScore: 0.02, xp: 160, passXp: 150, fragmentChance: 0.05, reviveTokenChance: 0.05 },
-      gradeThresholds: [26000, 48000, 72000, 95000],
+      rewards: { baseCredits: 400, creditsPerScore: 0.014, xp: 160, passXp: 150, fragmentChance: 0.05, reviveTokenChance: 0.05 },
+      gradeThresholds: [55000, 85000, 117000, 145000],
       unlockRule: { type: 'level', level: 2 },
       unlockText: 'Откроется на уровне 2',
       rewardIcons: ['credits', 'shards', 'mystery'],
@@ -501,7 +507,7 @@ export const DEFAULT_CONFIG: RemoteConfig = {
     ],
     weeklyMissionPool: [
       { id: 'w_finish', title: 'Финишируй в 20 забегах', metric: 'finishes', target: 20, reward: { stars: 40, passXp: 600 } },
-      { id: 'w_score', title: 'Набери 600 000 очков', metric: 'score', target: 600000, reward: { credits: 6000, passXp: 600 } },
+      { id: 'w_score', title: 'Набери 1 000 000 очков', metric: 'score', target: 1000000, reward: { credits: 6000, passXp: 600 } },
       { id: 'w_upgrade', title: 'Улучши снаряжение 5 раз', metric: 'upgrades', target: 5, reward: { shards: 400, passXp: 500 } },
       { id: 'w_bridge', title: 'Пройди «Сломанный мост»', metric: 'routeFinish', target: 1, routeId: 'bridge', reward: { stars: 30, passXp: 500 } },
       { id: 'w_event', title: 'Участвуй в событии 3 раза', metric: 'eventRuns', target: 3, reward: { reviveTokens: 2, passXp: 500 } },

@@ -10,7 +10,8 @@ import { EntityViews } from './entities';
 import { detectTier, profileFor, rememberTier, type QualityProfile, type Tier } from './quality';
 import { RunnerModel, type RunnerPose } from './runner';
 import { glowTexture } from './textures';
-import { Fields, Particles, Trail } from './vfx';
+import { SpeedPass } from './postfx';
+import { Fields, Particles, Shockwaves, Trail } from './vfx';
 import { LANE_W, World } from './world';
 
 const STEP = 1 / TICK_RATE;
@@ -32,6 +33,12 @@ export interface HudState {
   boostShields: number;
   speedBoost: boolean;
   invulnerable: boolean;
+  progress: number;
+  checkpoints: number[];
+  climax: number | null;
+  climaxActive: boolean;
+  pad: boolean;
+  gain: number;
 }
 
 export type EngineEvent =
@@ -41,7 +48,8 @@ export type EngineEvent =
   | { type: 'done'; summary: RunSummary; inputs: InputRecord[] }
   | { type: 'popup'; text: string; kind: 'near' | 'combo' | 'shield' | 'boost' | 'smash' | 'soft' | 'ult' | 'shard' }
   | { type: 'hint'; hint: string }
-  | { type: 'flash'; kind: 'hit' | 'soft' | 'revive' | 'ult' | 'finish' | 'shield' }
+  | { type: 'flash'; kind: 'hit' | 'soft' | 'revive' | 'ult' | 'finish' | 'shield' | 'pad' }
+  | { type: 'climax'; name: string }
   | { type: 'autopause' };
 
 export interface EngineOptions {
@@ -52,6 +60,7 @@ export interface EngineOptions {
   skin: SkinDef;
   graphics: 'auto' | Tier;
   reducedShake: boolean;
+  reducedFlash?: boolean;
   onHud(h: HudState): void;
   onEvent(e: EngineEvent): void;
 }
@@ -71,6 +80,11 @@ export class GameEngine {
   private readonly particles: Particles;
   private readonly trail: Trail;
   private readonly fields: Fields;
+  private readonly waves: Shockwaves;
+  private speedPass: SpeedPass | null = null;
+  private timeScale = 1;
+  private slowmo = 0;
+  private padFx = 0;
   private readonly finishPortal = new THREE.Group();
   private q: QualityProfile;
   private readonly ro: ResizeObserver;
@@ -86,6 +100,8 @@ export class GameEngine {
   private hitStop = 0;
   private shake = 0;
   private camX = 0;
+  private camH = 3.25;
+  private camD = 6.4;
   private prevZ = 0;
   private prevLane = 1;
   private renderZ = 0;
@@ -129,6 +145,9 @@ export class GameEngine {
     this.scene.add(this.trail.mesh);
     this.fields = new Fields(this.world.palette.accent, this.world.palette.accent2);
     this.scene.add(this.fields.group);
+    this.waves = new Shockwaves(12);
+    this.scene.add(this.waves.group);
+    this.views.camera = this.camera;
     this.buildFinishPortal();
     this.setupPost();
 
@@ -182,11 +201,14 @@ export class GameEngine {
     this.composer?.dispose();
     this.composer = null;
     this.bloom = null;
+    this.speedPass = null;
     if (!this.q.bloom) return;
     const composer = new EffectComposer(this.renderer);
     composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), this.q.tier === 'high' ? 0.8 : 0.65, 0.5, 0.72);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), this.q.tier === 'high' ? 0.8 : 0.65, 0.45, 0.88);
     composer.addPass(this.bloom);
+    this.speedPass = new SpeedPass(this.q.tier === 'high' ? 10 : 6);
+    composer.addPass(this.speedPass.asPass);
     composer.addPass(new OutputPass());
     this.composer = composer;
   }
@@ -298,6 +320,11 @@ export class GameEngine {
     if (this.paused) return;
     this.trackPerf(rawDt);
 
+    // Brief slow-motion on near misses / shield blocks. The sim stays tick-exact, so replays are unaffected.
+    if (this.slowmo > 0) {
+      this.slowmo -= rawDt;
+      this.timeScale += (0.45 - this.timeScale) * Math.min(1, rawDt * 25);
+    } else this.timeScale += (1 - this.timeScale) * Math.min(1, rawDt * 8);
     let visualScale = 1;
     if (this.hitStop > 0) {
       this.hitStop -= rawDt;
@@ -313,7 +340,8 @@ export class GameEngine {
       }
       if (this.countdown <= 0.2) this.mode = 'run';
     } else if (this.mode === 'run') {
-      this.stepSim(rawDt);
+      this.stepSim(rawDt * this.timeScale);
+      visualScale = this.timeScale;
       if (this.sim.phase === 'checkpoint') visualScale = 0.12;
       else if (this.sim.phase === 'down') visualScale = 0.25;
     }
@@ -362,16 +390,53 @@ export class GameEngine {
     this.opts.onEvent({ type: 'popup', text, kind });
   }
 
+  private comboMilestone = 0;
+  private static readonly MILESTONES: [number, string][] = [
+    [25, 'В ПОТОКЕ!'],
+    [50, 'ОГОНЬ!'],
+    [100, 'НЕУДЕРЖИМ!'],
+    [150, 'ЛЕГЕНДА ПУСТОТЫ!'],
+    [250, 'БОГ СКОРОСТИ!'],
+  ];
+
   private handleEvents() {
     const P = this.world.palette;
+    const next = GameEngine.MILESTONES[this.comboMilestone];
+    if (next && this.sim.combo >= next[0]) {
+      this.comboMilestone++;
+      this.emitPopup(next[1], 'combo');
+      this.waves.spawn((this.sim.laneX - 1) * LANE_W, 1.2, 0, 0xffc35a, 3.5, 0.5);
+      audio.sfx('combo', 12);
+      tg.haptic('medium');
+    } else if (this.comboMilestone > 0 && this.sim.combo < GameEngine.MILESTONES[this.comboMilestone - 1][0] * 0.5) {
+      this.comboMilestone = Math.max(0, this.comboMilestone - 1);
+    }
     const rz = this.sim.z;
     const runnerX = (this.sim.laneX - 1) * LANE_W;
     for (const ev of this.sim.events) {
       switch (ev.type) {
+        case 'pad':
+          this.padFx = 1;
+          this.speedPass?.kick('pad');
+          this.waves.spawn(runnerX, 0.05, 0, 0x35d7ff, 3.2, 0.45, true);
+          this.particles.emit(runnerX, 0.2, -0.5, 18, 0x7fe6ff, { speed: 5, life: 0.4, size: 0.3, gravity: 0, vz: 10, anchored: false });
+          this.emitPopup('УСКОРЕНИЕ!', 'boost');
+          audio.sfx('pad');
+          tg.haptic('light');
+          break;
+        case 'climax':
+          this.world.spawnBoss();
+          this.opts.onEvent({ type: 'climax', name: ev.name });
+          audio.sfx('alarm');
+          tg.haptic('warning');
+          this.shake = Math.max(this.shake, 0.4);
+          break;
         case 'pickup': {
+          if (ev.kind === 'pad') break;
           const color = ev.kind === 'shard' ? 0xb07bff : ev.kind === 'credit' ? 0xffc53d : ev.kind === 'charge' ? 0x35d7ff : 0xff4d6d;
           const p = this.views.worldPos(ev, rz, this.tmpV);
-          this.particles.emit(p.x, p.y, p.z, ev.kind === 'shard' ? 6 : 14, color, { speed: 3, life: 0.4, size: 0.3, gravity: 2 });
+          this.particles.emit(p.x, p.y, p.z, ev.kind === 'shard' ? 7 : 16, color, { speed: 3.5, life: 0.4, size: 0.3, gravity: 2 });
+          if (ev.kind !== 'shard') this.waves.spawn(p.x, p.y, p.z, color, 1.6, 0.35, false, true);
           this.views.addFlying(ev.kind as 'shard', ev.lane, ev.z, rz);
           audio.sfx('pickup');
           if (ev.kind === 'charge') this.emitPopup('+ЗАРЯД', 'ult');
@@ -380,6 +445,8 @@ export class GameEngine {
         }
         case 'near':
           this.emitPopup('ВПРИТЫК!', 'near');
+          this.slowmo = 0.16;
+          this.waves.spawn(runnerX, 1.1, -0.2, P.accent, 2.2, 0.35);
           this.particles.emit(runnerX, 1.2, -0.5, 12, P.accent, { speed: 5, life: 0.35, size: 0.25, gravity: 0, anchored: false });
           audio.sfx('near');
           tg.haptic('light');
@@ -394,7 +461,9 @@ export class GameEngine {
           break;
         case 'hard':
           this.shake = 1;
-          this.hitStop = 0.18;
+          this.hitStop = 0.32;
+          this.speedPass?.kick('hit');
+          this.waves.spawn(runnerX, 1, -0.5, P.danger, 5, 0.6);
           this.opts.onEvent({ type: 'flash', kind: 'hit' });
           this.particles.emit(runnerX, 1, -1, 40, P.danger, { speed: 7, life: 0.8, size: 0.4 });
           audio.sfx('hit');
@@ -404,6 +473,11 @@ export class GameEngine {
           if (ev.by !== 'invuln') {
             this.opts.onEvent({ type: 'flash', kind: 'shield' });
             this.emitPopup('ЩИТ!', 'shield');
+            this.fields.shieldHit();
+            this.speedPass?.kick('shield');
+            this.slowmo = 0.2;
+            this.waves.spawn(runnerX, 1.1, -0.3, 0x4cc9ff, 4, 0.5);
+            this.waves.spawn(runnerX, 0.05, 0, 0x4cc9ff, 3.5, 0.55, true);
             this.particles.emit(runnerX, 1.2, -1, 30, 0x4cc9ff, { speed: 6, life: 0.6, size: 0.35 });
             audio.sfx('break');
             this.shake = Math.max(this.shake, 0.3);
@@ -411,7 +485,8 @@ export class GameEngine {
           }
           break;
         case 'smash':
-          this.particles.emit(runnerX, 1, -2, 26, 0xff9a1f, { speed: 8, life: 0.6, size: 0.4 });
+          this.particles.emit(runnerX, 1, -2, 30, 0xff9a1f, { speed: 9, life: 0.6, size: 0.45 });
+          this.waves.spawn(runnerX, 1, -2, 0xffa32a, 2.8, 0.35, false, true);
           this.shake = Math.max(this.shake, 0.25);
           audio.sfx('break');
           break;
@@ -420,6 +495,7 @@ export class GameEngine {
           tg.haptic('select');
           break;
         case 'checkpoint':
+          this.waves.spawn(0, 2.1, -1, P.accent, 7, 0.7);
           audio.sfx('checkpoint');
           tg.haptic('medium');
           this.opts.onEvent({ type: 'checkpoint', index: ev.index, options: ev.options });
@@ -430,12 +506,17 @@ export class GameEngine {
           break;
         case 'gadget':
           if (ev.gadget === 'ult') {
+            this.speedPass?.kick('ult');
+            this.waves.spawn(runnerX, 1.2, -0.5, 0xffa32a, 7, 0.6);
+            this.waves.spawn(runnerX, 0.05, 0, 0xffc35a, 6, 0.6, true);
+            this.particles.emitRing(runnerX, 1.1, 0, 3, 40, 0xffc35a, -9, 0.4);
             this.opts.onEvent({ type: 'flash', kind: 'ult' });
             this.emitPopup('ПРОРЫВ ВОЙДА!', 'ult');
             this.shake = Math.max(this.shake, 0.5);
             audio.sfx('ult');
             tg.haptic('heavy');
           } else {
+            this.waves.spawn(runnerX, 1.1, 0, ev.gadget === 'shield' ? 0x4cc9ff : 0xc07bff, 2.6, 0.45);
             audio.sfx(ev.gadget === 'shield' ? 'shield' : 'magnet');
             tg.haptic('light');
           }
@@ -454,12 +535,16 @@ export class GameEngine {
           this.opts.onEvent({ type: 'hint', hint: ev.hint });
           break;
         case 'revive':
+          this.waves.spawn(runnerX, 1.1, 0, P.accent, 5, 0.6);
           this.opts.onEvent({ type: 'flash', kind: 'revive' });
           this.particles.emit(runnerX, 1.2, 0, 40, P.accent, { speed: 5, life: 0.8, size: 0.4 });
           this.hitStop = 0;
           break;
         case 'finishStart':
+          this.emitPopup('ФИНИШ!', 'ult');
           this.finishPortal.visible = true;
+          this.speedPass?.kick('finish');
+          this.world.hideBoss();
           this.opts.onEvent({ type: 'flash', kind: 'finish' });
           audio.sfx('finish');
           tg.haptic('success');
@@ -494,16 +579,27 @@ export class GameEngine {
       if (Math.random() < (ultActive ? 1 : 0.5)) this.particles.emit(runnerX + (Math.random() - 0.5) * 0.3, 0.25, 0.3, ultActive ? 3 : 1, trailColor, { speed: 1, life: 0.35, size: ultActive ? 0.5 : 0.28, gravity: -1, vz: 6 });
     }
     this.particles.update(dt, dz);
+    this.waves.update(dt, dz);
+    this.padFx = Math.max(0, this.padFx - dt * 1.2);
+    if ((sim.magnetActive || ultActive) && dt > 0 && Math.random() < 0.7) this.particles.emitRing(runnerX, 1.1, -0.5, 2.4, 2, ultActive ? 0xffc35a : 0xc07bff, 7, 0.3);
+    this.world.updateBoss(this.time, dt, sim, this.renderZ);
     this.trail.mesh.visible = this.mode === 'run' && sim.phase !== 'down';
     this.trail.update(this.renderZ, runnerX, ultActive ? 0.34 : 0.12, 0.12);
     this.fields.update(dt, this.time, {
       shield: sim.shieldActive ? 1 : 0,
       boostShield: sim.boostShields > 0,
       magnet: sim.magnetActive || ultActive,
-      speedFx: ultActive ? 1 : sim.tick < sim.speedBoostUntil ? 0.6 : speedFactor * 0.35,
+      speedFx: ultActive ? 1 : sim.tick < sim.speedBoostUntil || sim.tick < sim.padUntil ? 0.7 : speedFactor * 0.4,
       ult: ultActive ? 1 : 0,
       runnerX,
       dz,
+      pad: sim.tick < sim.padUntil ? 1 : this.padFx,
+    });
+    this.speedPass?.update(dt || 0.016, this.time, {
+      speed: speedFactor,
+      ult: ultActive ? 1 : 0,
+      boost: sim.tick < sim.speedBoostUntil || sim.tick < sim.padUntil ? 1 : 0,
+      reducedFlash: Boolean(this.opts.reducedFlash),
     });
 
     if (this.finishPortal.visible) {
@@ -518,11 +614,17 @@ export class GameEngine {
     const amp = this.shake * this.shake * (this.opts.reducedShake ? 0.2 : 1) * 0.35;
     const intro = this.mode === 'countdown' ? Math.max(0, this.countdown / 3.2) : 0;
     const cam = this.camera;
-    cam.position.set(this.camX + (Math.random() - 0.5) * amp, 3.25 + intro * 2.2 + (Math.random() - 0.5) * amp, 6.4 + intro * 5);
+    const hT = sim.phase === 'down' ? 4.3 : sim.phase === 'finishing' ? 3.9 : ultActive ? 2.75 : 3.25;
+    const dT = sim.phase === 'down' ? 7.4 : sim.phase === 'finishing' ? 7.8 : ultActive ? 5.5 : 6.4;
+    const kc = 1 - Math.exp(-(dt || 0.016) * 3);
+    this.camH += (hT - this.camH) * kc;
+    this.camD += (dT - this.camD) * kc;
+    const bob = this.mode === 'run' && sim.phase === 'run' ? Math.sin(this.time * (8 + sim.speed * 0.12)) * 0.035 : 0;
+    cam.position.set(this.camX + (Math.random() - 0.5) * amp, this.camH + bob + intro * 2.2 + (Math.random() - 0.5) * amp, this.camD + intro * 5);
     cam.lookAt(this.camX * 0.85, 1.25, -12);
     cam.rotation.z += -this.runner.lean * 0.035;
     const baseFov = this.camera.aspect < 0.5 ? 68 : 62;
-    const fovTarget = baseFov + speedFactor * 4 + (sim.tick < sim.speedBoostUntil ? 4 : 0) + (ultActive ? 14 : 0) + (sim.phase === 'finishing' ? 8 : 0);
+    const fovTarget = baseFov + speedFactor * 5 + (sim.tick < sim.speedBoostUntil ? 4 : 0) + (sim.tick < sim.padUntil ? 5 : 0) + (ultActive ? 15 : 0) + (sim.phase === 'finishing' ? 10 : 0);
     cam.fov += (fovTarget - cam.fov) * Math.min(1, dt * 4 + 0.001);
     cam.updateProjectionMatrix();
     if (this.bloom) this.bloom.strength = (this.q.tier === 'high' ? 0.8 : 0.65) + (ultActive ? 0.45 : 0);
@@ -553,10 +655,17 @@ export class GameEngine {
     }
   }
 
+  private gainHist: { t: number; pts: number }[] = [];
+
   private hud(): HudState {
     const s = this.sim;
     const sc = this.opts.config.sim.score;
     const raw = s.z * sc.perMeter + s.pickupPts + s.comboPts + s.nearPts;
+    // Points earned from pickups/combo/near misses over the last second (combo panel "+N").
+    const bonus = (s.pickupPts + s.comboPts + s.nearPts) * s.route.scoreModifier;
+    this.gainHist.push({ t: s.tick, pts: bonus });
+    while (this.gainHist.length > 1 && s.tick - this.gainHist[0].t > 60) this.gainHist.shift();
+    const route = s.route;
     return {
       phase: this.mode === 'countdown' ? 'countdown' : s.phase,
       distance: Math.floor(s.z),
@@ -574,6 +683,12 @@ export class GameEngine {
       boostShields: s.boostShields,
       speedBoost: s.tick < s.speedBoostUntil,
       invulnerable: s.tick < s.invulnUntil,
+      progress: Math.min(1, s.tick / s.durationTicks),
+      checkpoints: route.checkpointTimes.filter((t) => t < route.durationSec - 3).map((t) => t / route.durationSec),
+      climax: route.climax ? 1 - route.climax.lastSec / route.durationSec : null,
+      climaxActive: s.climaxStarted && s.phase !== 'finishing' && !s.done,
+      pad: s.tick < s.padUntil,
+      gain: Math.max(0, Math.round(bonus - this.gainHist[0].pts)),
     };
   }
 

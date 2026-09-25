@@ -1,4 +1,4 @@
-import { Pause, Play, RotateCcw, LogOut, Volume2, VolumeX, Music } from 'lucide-react';
+import { Flag, Hand, Pause, Play, RotateCcw, LogOut, Skull, Timer, Volume2, VolumeX, Music } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { skinById, type BoostId, type InputRecord, type RunSummary } from '@void-rush/shared';
 import { ApiError } from '../api/client';
@@ -50,6 +50,7 @@ export function RunScreen() {
   const [popups, setPopups] = useState<Popup[]>([]);
   const [hint, setHint] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ kind: string; id: number } | null>(null);
+  const [bossName, setBossName] = useState<string | null>(null);
   const [reviveLeft, setReviveLeft] = useState(0);
   const [reviveBusy, setReviveBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -115,6 +116,10 @@ export function RunScreen() {
         case 'flash':
           setFlash({ kind: e.kind, id: popupId++ });
           break;
+        case 'climax':
+          setBossName(e.name);
+          setTimeout(() => setBossName(null), 2600);
+          break;
         case 'autopause':
           engineRef.current?.pause();
           setOverlay('pause');
@@ -128,7 +133,8 @@ export function RunScreen() {
     if (!run || !hostRef.current) return;
     let disposed = false;
     const skin = skinById(config, profile.selectedSkin) ?? config.skins[0];
-    void import('../game/engine').then(({ GameEngine }) => {
+    const load = Promise.all([import('../game/engine'), import('../game/preload').then((m) => m.preloadCore()).catch(() => undefined)]);
+    void load.then(([{ GameEngine }]) => {
       if (disposed || !hostRef.current) return;
       try {
         const engine = new GameEngine(hostRef.current, {
@@ -139,6 +145,7 @@ export function RunScreen() {
           skin,
           graphics: profile.settings.graphics,
           reducedShake: profile.settings.reducedShake,
+          reducedFlash: profile.settings.reducedFlash,
           onHud: setHud,
           onEvent,
         });
@@ -146,7 +153,7 @@ export function RunScreen() {
         if (import.meta.env.DEV) (window as unknown as { __engine: GameEngine }).__engine = engine;
         setOverlay(null);
         engine.start();
-        if (run.tutorial || run.routeId === 'tutorial') setTimeout(() => setHint(HINTS.swipe), 3300);
+        if (run.routeId === 'tutorial') setTimeout(() => setHint(HINTS.swipe), 3300);
       } catch (err) {
         console.error(err);
         setErrorMsg('Ваше устройство не поддерживает 3D-графику (WebGL)');
@@ -236,6 +243,8 @@ export function RunScreen() {
   };
 
   const best = profile.stats.routeBest[run.routeId]?.distance ?? profile.stats.bestDistance;
+  // Controls reminder only for the first couple of real runs; veterans never see it.
+  const showControlsHint = run.routeId !== 'tutorial' && profile.stats.runs < 2;
   const ultPct = hud ? (hud.ultActive > 0 ? hud.ultActive : hud.ult) : 0;
   const canRevive = !hud || true;
   const hasToken = profile.balances.reviveTokens >= config.revive.tokenCost;
@@ -244,6 +253,12 @@ export function RunScreen() {
   return (
     <div className="run-root" ref={hostRef}>
       <div className="hud">
+        <div className="run-progress" aria-hidden>
+          <i className="fill" style={{ width: `${(hud?.progress ?? 0) * 100}%` }} />
+          {hud?.checkpoints.map((c) => <b key={c} className={`cp ${(hud?.progress ?? 0) >= c ? 'done' : ''}`} style={{ left: `${c * 100}%` }} />)}
+          {hud?.climax != null && <span className="boss-zone" style={{ left: `${hud.climax * 100}%` }}><Skull size={10} /></span>}
+          <span className="finish-flag"><Flag size={11} /></span>
+        </div>
         <div className="hud-top">
           <div className="hud-left">
             <div className="row" style={{ gap: 8 }}>
@@ -266,15 +281,16 @@ export function RunScreen() {
           </div>
           <div className="hud-right">
             <div className="hud-panel hud-time">
-              <div className="hud-label">Время</div>
-              <div className={`hud-big num ${hud && hud.time <= 10 ? 'hot' : ''}`}>{clock(hud?.time ?? route.durationSec)}</div>
+              <Timer size={26} className="timer-ico" />
+              <div>
+                <div className="hud-label">Время</div>
+                <div className={`hud-big num ${hud && hud.time <= 10 ? 'hot' : ''}`}>{clock(hud?.time ?? route.durationSec)}</div>
+              </div>
             </div>
-            <div className={`hud-combo ${hud && hud.mult > 1 ? 'on' : ''}`}>
+            <div className={`hud-combo m${hud?.mult ?? 1} ${hud && hud.mult > 1 ? 'on' : ''}`} key={`m${hud?.mult ?? 1}`}>
               <div className="hud-label gold-text">Комбо</div>
               <div className="combo-val num">x{hud?.combo ?? 0}</div>
-              <div className="combo-mult">
-                множитель <b>x{hud?.mult ?? 1}</b>
-              </div>
+              <div className="combo-gain num">{hud && hud.gain > 0 ? <>+{fmt(hud.gain)} <Shard size={13} /></> : <>множитель x{hud?.mult ?? 1}</>}</div>
             </div>
             {(hud?.boostShields ?? 0) > 0 && (
               <div className="hud-chip">
@@ -286,6 +302,7 @@ export function RunScreen() {
                 <BoostIcon size={14} /> скорость
               </div>
             )}
+            {hud?.pad && <div className="hud-chip cyan">⟫ рывок</div>}
           </div>
         </div>
 
@@ -298,11 +315,20 @@ export function RunScreen() {
         </div>
 
         {count !== null && <div className="countdown" key={count}>{count === 0 ? 'GO!' : count}</div>}
+        {bossName && (
+          <div className="boss-banner">
+            <span className="boss-kicker">⚠ Мини-босс</span>
+            <b>{bossName}</b>
+            <span className="boss-sub">Уворачивайся от обломков!</span>
+          </div>
+        )}
+        {hud?.climaxActive && !bossName && <div className="boss-edge" />}
 
         <div className="hud-bottom">
-          {(hint || (hud?.phase === 'countdown' && !hint)) && (
+          {(hint || (hud?.phase === 'countdown' && showControlsHint)) && (
             <div className="swipe-hint">
               <span>‹</span>
+              <Hand size={18} className="hint-hand" />
               {hint ?? 'Свайп для уклонения'}
               <span>›</span>
             </div>
@@ -320,6 +346,7 @@ export function RunScreen() {
             <button className={`gadget ult ${hud && hud.ult >= 1 ? 'ready' : ''} ${hud && hud.ultActive > 0 ? 'active' : ''}`} disabled={!hud || (hud.ult < 1 && hud.ultActive <= 0)} onPointerDown={press('ult')}>
               <div className="hex big">
                 <BoostIcon size={46} />
+                {hud && hud.ultActive > 0 && <i className="ring" style={{ ['--p' as string]: hud.ultActive }} />}
               </div>
               <b>Ускорение</b>
               <span>Прорыв войда</span>
@@ -333,6 +360,7 @@ export function RunScreen() {
               <div className="hex">
                 <MagnetIcon size={34} />
                 <span className="count">{hud?.magnetCharges ?? 0}</span>
+                {hud && hud.magnetActive > 0 && <i className="ring" style={{ ['--p' as string]: hud.magnetActive }} />}
               </div>
               <b>Магнит</b>
               <span>Притягивает осколки</span>
@@ -357,6 +385,9 @@ export function RunScreen() {
             Выбери буст
           </h2>
           {run.routeId === 'tutorial' && <div className="sub center">Бусты действуют только в этом забеге</div>}
+          <div className="cp-timer">
+            <i />
+          </div>
           <div className="boost-cards">
             {options.map((id) => {
               const Icon = BOOST_ICON[id];
@@ -377,7 +408,9 @@ export function RunScreen() {
           <h2 className="h-display red" style={{ fontSize: 30 }}>
             Столкновение!
           </h2>
-          <div className="revive-timer">{reviveLeft}</div>
+          <div className="revive-timer" style={{ ['--p' as string]: reviveLeft / 6 }}>
+            <span>{reviveLeft}</span>
+          </div>
           {canRevive && (
             <div className="col" style={{ width: '100%', maxWidth: 320 }}>
               <Btn variant="violet" block loading={reviveBusy} disabled={!hasToken} onClick={() => void revive('token')}>

@@ -1,3 +1,5 @@
+import '@fontsource/kaushan-script/latin-400.css';
+import { CheckCircle2, Gift, Info, TriangleAlert } from 'lucide-react';
 import { Component, useEffect, type ReactNode } from 'react';
 import { audio } from './audio/audio';
 import { ModalHost } from './modals/Modals';
@@ -16,7 +18,11 @@ import { boot, refreshProfile } from './state/actions';
 import { useStore } from './state/store';
 import { BottomNav, Btn, Logo } from './ui/common';
 import { SvgDefs } from './ui/icons';
+import { MenuBackdrop } from './ui/Backdrop';
 import { track } from './analytics';
+
+// Dev-only handle for visual QA scripts (tree-shaken from production builds).
+if (import.meta.env.DEV) (window as unknown as { __vr: typeof useStore }).__vr = useStore;
 
 function BootScreen() {
   const state = useStore((s) => s.boot);
@@ -24,6 +30,7 @@ function BootScreen() {
   const progress = useStore((s) => s.bootProgress);
   return (
     <div className="boot">
+      <MenuBackdrop />
       <div className="boot-portal" />
       <Logo size={56} />
       {state === 'loading' && (
@@ -98,14 +105,22 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean
   }
 }
 
+const TOAST_ICON = {
+  info: <Info size={18} />,
+  success: <CheckCircle2 size={18} />,
+  error: <TriangleAlert size={18} />,
+  reward: <Gift size={18} />,
+};
+
 function Toasts() {
   const toasts = useStore((s) => s.toasts);
   const dismiss = useStore((s) => s.dismissToast);
   return (
-    <div className="toasts">
+    <div className="toasts" role="status" aria-live="polite">
       {toasts.map((t) => (
         <div key={t.id} className={`toast ${t.kind}`} onClick={() => dismiss(t.id)}>
-          {t.text}
+          <span className="toast-ico">{TOAST_ICON[t.kind]}</span>
+          <span className="grow">{t.text}</span>
         </div>
       ))}
     </div>
@@ -155,6 +170,7 @@ export function App() {
     <div className={`app ${inRun ? 'in-run' : ''}`}>
       <SvgDefs />
       <div className="stars-bg" />
+      {!inRun && <MenuBackdrop />}
       <ErrorBoundary>
       {screen === 'home' && <Home />}
       {screen === 'routes' && <RunSelect />}

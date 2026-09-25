@@ -5,7 +5,7 @@ import { track } from '../analytics';
 import { fetchShop, handleError, setProfile } from '../state/actions';
 import { useStore, type ShopTab } from '../state/store';
 import { Btn, Img, PriceTag, TopBar, click } from '../ui/common';
-import { Bolt, CurrencyIcon, Helmet, ReviveIcon, StarIcon, Crown, Trophy } from '../ui/icons';
+import { Bolt, CurrencyIcon, Helmet, PassCard, ReviveIcon, StarIcon, Crown, Trophy } from '../ui/icons';
 import { ProductArt } from '../ui/ProductArt';
 import { fmt } from '../ui/format';
 
@@ -54,6 +54,7 @@ function StarCard({ p }: { p: ShopProduct }) {
       }}
     >
       {best && <div className="best-badge">{p.badge}</div>}
+      {!p.available && <span className="owned-tag">Куплено</span>}
       <div className="row star-amount">
         <StarIcon size={20} />
         <b className="num">{p.title}</b>
@@ -111,14 +112,10 @@ export function Shop() {
         <Img src="/art/shop-hero.webp" className="hero-img" style={{ objectPosition: '70% 30%' }} />
         <div className="hero-shade left" />
         <div className="shop-hero-text">
-          <h1 className="h-display" style={{ fontSize: 48 }}>
-            Магазин
-          </h1>
-          <div className="caps sub" style={{ color: '#dfe8ff' }}>
-            Больше возможностей. Дальше в пустоту.
-          </div>
+          <h1 className="h-chrome shop-title">Магазин</h1>
+          <div className="hero-kicker">Больше возможностей. Дальше в пустоту.</div>
         </div>
-        <div className="side-note" style={{ position: 'absolute', right: 10, top: 14 }}>
+        <div className="side-note" style={{ position: 'absolute', right: 12, top: 76, textAlign: 'right' }}>
           Good
           <br />
           runs
@@ -170,7 +167,7 @@ export function Shop() {
               <h2 className="h-section">Звёзды</h2>
               <div className="sub">Премиальная валюта VOID RUSH. Оплата через Telegram Stars.</div>
             </div>
-            <Info size={18} className="muted" />
+            <Info size={18} className="muted" style={{ flex: 'none' }} />
           </div>
           <div className="star-grid">
             {stars.map((p) => (
@@ -251,6 +248,9 @@ export function Shop() {
                     <Trophy size={14} /> Особые задания
                   </li>
                 </ul>
+                <span className="offer-pass-art" aria-hidden>
+                  <PassCard size={78} />
+                </span>
                 <span className="price-btn violet wide">{pass.available ? <PriceTag price={pass.price} /> : 'Активен'}</span>
               </button>
             )}
@@ -271,11 +271,15 @@ export function Shop() {
                       openModal({ type: 'purchase', productId: p.productId });
                     }}
                   >
-                    <ProductArt image={p.image} size={54} />
-                    <b>{p.title}</b>
-                    <span className="sub">{p.subtitle}</span>
-                    <span className="price-btn">
-                      {p.available ? <PriceTag price={p.price} /> : 'Куплено'} <ChevronRight size={14} />
+                    <span className="pop-art">
+                      <ProductArt image={p.image} size={40} />
+                    </span>
+                    <span className="pop-body">
+                      <b>{p.title}</b>
+                      <span className="sub">{p.subtitle}</span>
+                      <span className="price-btn">
+                        {p.available ? <PriceTag price={p.price} /> : 'Куплено'} <ChevronRight size={13} />
+                      </span>
                     </span>
                   </button>
                 ))}

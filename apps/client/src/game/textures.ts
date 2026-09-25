@@ -228,3 +228,53 @@ export function hexGridTexture() {
     }
   }, { repeat: true });
 }
+
+/** Floor chevrons for boost pads. */
+export function chevronTexture() {
+  return canvasTexture('chevron', 128, 256, (ctx, w, h) => {
+    ctx.fillStyle = 'rgba(4, 30, 60, 0.85)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#7fe6ff';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(4, 4, w - 8, h - 8);
+    ctx.fillStyle = '#9ff0ff';
+    ctx.shadowColor = '#35d7ff';
+    ctx.shadowBlur = 14;
+    for (let i = 0; i < 3; i++) {
+      const y = 40 + i * 64;
+      ctx.beginPath();
+      ctx.moveTo(18, y + 34);
+      ctx.lineTo(w / 2, y);
+      ctx.lineTo(w - 18, y + 34);
+      ctx.lineTo(w - 18, y + 52);
+      ctx.lineTo(w / 2, y + 18);
+      ctx.lineTo(18, y + 52);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }, { repeat: true });
+}
+
+/** Holographic billboard with slogan text (side of the track). */
+export function billboardTexture(lines: string[], color: string) {
+  return canvasTexture(`bb-${lines.join('|')}-${color}`, 256, 384, (ctx, w, h) => {
+    ctx.fillStyle = 'rgba(6, 10, 28, 0.9)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 6;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 16;
+    ctx.strokeRect(10, 10, w - 20, h - 20);
+    ctx.font = '900 italic 40px "Exo 2", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = color;
+    lines.forEach((l, i) => ctx.fillText(l, w / 2, 90 + i * 56));
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - 18, h - 70);
+    ctx.lineTo(w / 2 + 18, h - 70);
+    ctx.lineTo(w / 2, h - 44);
+    ctx.closePath();
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  });
+}

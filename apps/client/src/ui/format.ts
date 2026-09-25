@@ -31,6 +31,30 @@ export function clock(sec: number): string {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
+/** Russian plural form: plural(5, ['день', 'дня', 'дней']) → 'дней'. */
+export function plural(n: number, forms: readonly [one: string, few: string, many: string]): string {
+  const a = Math.abs(Math.trunc(n));
+  const d10 = a % 10;
+  const d100 = a % 100;
+  if (d10 === 1 && d100 !== 11) return forms[0];
+  if (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) return forms[1];
+  return forms[2];
+}
+
+/** `5 дней`, with the number formatted. */
+export const pluralN = (n: number, forms: readonly [string, string, string]) => `${fmt(n)} ${plural(n, forms)}`;
+
+export const DAYS = ['день', 'дня', 'дней'] as const;
+export const RUNS = ['забег', 'забега', 'забегов'] as const;
+export const LEVELS = ['уровень', 'уровня', 'уровней'] as const;
+
+/** Pill-friendly number: full up to 9 999, then `12,4K` / `1,2M`. */
+export function short(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace('.', ',').replace(',0', '')}M`;
+  if (n >= 10_000) return `${(n / 1000).toFixed(n >= 100_000 ? 0 : 1).replace('.', ',').replace(',0', '')}K`;
+  return fmt(n);
+}
+
 export const REWARD_LABEL: Record<string, string> = {
   credits: 'Кредиты',
   shards: 'Осколки',

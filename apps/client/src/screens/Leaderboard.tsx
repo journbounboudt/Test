@@ -1,12 +1,12 @@
 import { ChevronRight, Gift, Share2, Trophy as TrophyL, Users } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import type { LeaderboardView } from '../api/types';
 import { track } from '../analytics';
 import { tg } from '../platform/telegram';
 import { claimWeekly, fetchLeaderboard, handleError } from '../state/actions';
 import { useStore } from '../state/store';
 import { Avatar, BackBar, Btn, Cta, Img, Logo, RewardList, TopBar, click, useServerNow } from '../ui/common';
-import { Crown, CurrencyIcon, Shard, StarIcon } from '../ui/icons';
+import { Crown, CurrencyIcon, Shard, StarIcon, Stopwatch } from '../ui/icons';
 import { durationLong, fmt } from '../ui/format';
 
 type Tab = 'top' | 'friends' | 'rewards';
@@ -27,6 +27,7 @@ export function Leaderboard() {
   const [tab, setTab] = useState<Tab>('top');
   const [data, setData] = useState<LeaderboardView | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const now = useServerNow();
 
   useEffect(() => {
@@ -45,6 +46,8 @@ export function Leaderboard() {
     tg.share(link, 'Беги со мной в VOID RUSH — 60 секунд, чтобы уйти дальше всех!');
   };
   const meInList = data?.rows.some((r) => r.me);
+  const rows = data ? (expanded ? data.rows : data.rows.filter((r, i) => i < 10 || r.me)) : [];
+  const hidden = data ? data.rows.length - rows.length : 0;
 
   return (
     <div className="screen leaderboard">
@@ -57,15 +60,36 @@ export function Leaderboard() {
           <div className="row kicker" style={{ color: '#9fdcff', gap: 6 }}>
             <TrophyL size={16} color="#ffc53d" /> Недельный турнир
           </div>
-          <div style={{ marginLeft: -4 }}>
-            <Logo size={36} />
+          <Logo size={40} className="lb-logo" />
+          <b className="lb-tagline">Беги. Улучшай. Стань легендой.</b>
+          <div className="lb-desc">
+            Короткие забеги. Большие награды.
+            <br />
+            Покажи, на что ты способен за 60 секунд!
           </div>
-          <b className="caps">Беги. Улучшай. Стань легендой.</b>
-          <div className="sub">Покажи, на что ты способен за 60 секунд!</div>
           <div className="panel cyan countdown-box">
-            <div className="tiny">До конца турнира</div>
-            <b className="num">{data ? durationLong(data.endsAt - now) : '—'}</b>
+            <Stopwatch size={26} />
+            <span>
+              <span className="tiny">До конца турнира</span>
+              <b className="num">{data ? durationLong(data.endsAt - now) : '—'}</b>
+            </span>
           </div>
+        </div>
+        <div className="side-note lb-note">
+          Лучшие
+          <br />
+          бегут
+          <br />
+          дальше
+          <i className="note-rule" />
+          <br />
+          Одна
+          <br />
+          минута
+          <br />
+          решает
+          <br />
+          всё
         </div>
       </section>
 
@@ -106,8 +130,8 @@ export function Leaderboard() {
           <div className="lb-row lb-headrow">
             <span>#</span>
             <span>Игрок</span>
-            <span>Лучший</span>
-            <span>Награда</span>
+            <span className="r">Лучший</span>
+            <span className="r">Награда</span>
           </div>
           {loading && !data && [0, 1, 2, 3].map((i) => <div key={i} className="skeleton" style={{ height: 44, margin: 6 }} />)}
           {data && data.rows.length === 0 && (
@@ -116,8 +140,10 @@ export function Leaderboard() {
               {tab === 'friends' ? 'Пригласи друзей по ссылке — они появятся здесь.' : 'Сыграй забег, чтобы занять первое место.'}
             </div>
           )}
-          {data?.rows.map((r, i) => (
-            <div key={r.playerId} className={`lb-row ${r.me ? 'me' : ''}`} style={{ animationDelay: `${Math.min(i, 12) * 0.03}s` }}>
+          {rows.map((r, i) => (
+            <Fragment key={r.playerId}>
+            {i > 0 && r.rank - rows[i - 1].rank > 1 && <div className="lb-gap">• • •</div>}
+            <div className={`lb-row ${r.me ? 'me' : ''} ${r.rank <= 3 ? `top r${r.rank}` : ''}`} style={{ animationDelay: `${Math.min(i, 12) * 0.03}s` }}>
               <span className="lb-rank">
                 <RankBadge rank={r.rank} />
               </span>
@@ -131,7 +157,13 @@ export function Leaderboard() {
               <b className="num lb-score">{fmt(r.score)}</b>
               <span className="lb-reward">{r.reward ? <MiniReward b={r.reward} /> : <span className="muted">—</span>}</span>
             </div>
+            </Fragment>
           ))}
+          {hidden > 0 && (
+            <button className="lb-more" onClick={() => { click(); setExpanded(true); }}>
+              Показать всех · ещё {hidden}
+            </button>
+          )}
           {data && !meInList && tab === 'top' && (
             <>
               <div className="lb-gap">• • •</div>
@@ -177,9 +209,11 @@ export function Leaderboard() {
             .filter((t) => tab === 'rewards' || t.id !== 'top3')
             .map((t) => (
               <div key={t.id} className={`tier ${t.id === 'top1' ? 'gold' : t.id === 'top10' ? 'violet' : ''} ${data?.me.tierId === t.id ? 'mine' : ''}`}>
-                <b>{t.label}</b>
-                <TierArt reward={t.reward} />
-                <span>{t.description}</span>
+                <b className="tier-label">{t.label}</b>
+                <span className="tier-art-wrap">
+                  <TierArt reward={t.reward} />
+                </span>
+                <span className="tier-desc">{t.description}</span>
                 {tab === 'rewards' && <RewardList bundle={t.reward} size={14} />}
               </div>
             ))}

@@ -34,7 +34,7 @@ export function seedDemo(game: Game) {
     if (!has) {
       const rng = new Rng(hashString(wk));
       NAMES.forEach((_, i) => {
-        const score = Math.floor(50000 * Math.pow(0.93, i) * (0.9 + rng.next() * 0.2));
+        const score = Math.floor(185000 * Math.pow(0.935, i) * (0.9 + rng.next() * 0.2));
         db.run('INSERT OR IGNORE INTO leaderboard (week_key, player_id, best_score, distance, run_id, updated_at) VALUES (?, ?, ?, ?, ?, ?)', wk, `p_demo_${i}`, score, Math.floor(score / 11), `demo_${wk}_${i}`, now - i * 60000);
       });
     }

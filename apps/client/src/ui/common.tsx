@@ -1,11 +1,11 @@
 import { ChevronLeft, Play, Plus, ShoppingCart, Star as StarLucide, X, Home as HomeIcon } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Price, RewardBundle } from '@void-rush/shared';
 import { audio } from '../audio/audio';
 import { tg } from '../platform/telegram';
 import { useStore, type Screen } from '../state/store';
 import { Bolt, Coin, CurrencyIcon, Helmet, Shard, StarIcon, TgStar } from './icons';
-import { clock, fmt, rewardEntries } from './format';
+import { clock, fmt, rewardEntries, short } from './format';
 
 export function click() {
   audio.unlock();
@@ -13,20 +13,34 @@ export function click() {
   tg.haptic('light');
 }
 
-export function Cta({ children, onClick, disabled, loading, variant, small, className }: { children: ReactNode; onClick?: () => void; disabled?: boolean; loading?: boolean; variant?: 'blue' | 'purple'; small?: boolean; className?: string }) {
+function Chevrons({ n = 1, className }: { n?: 1 | 2; className?: string }) {
+  return (
+    <svg className={`cta-chev ${className ?? ''}`} viewBox={n === 2 ? '0 0 26 24' : '0 0 14 24'} aria-hidden>
+      <path d="M2 3.5 10.5 12 2 20.5" />
+      {n === 2 && <path d="M13 3.5 21.5 12 13 20.5" />}
+    </svg>
+  );
+}
+
+/** Hero hex call-to-action: glowing bevel rim, gradient core, chevrons, idle shimmer. */
+export function Cta({ children, onClick, disabled, loading, variant, small, className, icon }: { children: ReactNode; onClick?: () => void; disabled?: boolean; loading?: boolean; variant?: 'blue' | 'purple'; small?: boolean; className?: string; icon?: ReactNode }) {
   return (
     <button
-      className={`cta-wrap ${variant ?? ''} ${className ?? ''}`}
+      className={`cta-wrap ${variant ?? ''} ${small ? 'small' : ''} ${loading ? 'is-loading' : ''} ${className ?? ''}`}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       onClick={() => {
         click();
         onClick?.();
       }}
     >
-      <span className={`cta ${small ? 'small' : ''}`}>
-        <span className="chev">››</span>
-        {loading ? <span className="spinner" /> : <span>{children}</span>}
-        <span className="chev">›</span>
+      <span className="cta-rim">
+        <span className={`cta ${small ? 'small' : ''}`}>
+          {icon ? <span className="cta-icon">{icon}</span> : <Chevrons n={2} className="l" />}
+          <span className="cta-label">{loading ? <span className="spinner" /> : children}</span>
+          <Chevrons className="r" />
+          <span className="cta-shine" aria-hidden />
+        </span>
       </span>
     </button>
   );
@@ -113,6 +127,65 @@ function useEnergyTimer() {
   return { value: v, cap, next: v >= cap ? 0 : next };
 }
 
+/** Animated number that eases from its previous value; jumps instantly under reduced motion. */
+export function useCountUp(target: number, ms = 700): number {
+  const [shown, setShown] = useState(target);
+  const from = useRef(target);
+  useEffect(() => {
+    const start = from.current;
+    if (start === target || prefersReducedMotion()) {
+      from.current = target;
+      setShown(target);
+      return;
+    }
+    const t0 = performance.now();
+    let raf = 0;
+    const step = (t: number) => {
+      const k = Math.min(1, (t - t0) / ms);
+      const v = start + (target - start) * (1 - Math.pow(1 - k, 3));
+      from.current = v;
+      setShown(k >= 1 ? target : v);
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+  return Math.round(shown);
+}
+
+export function prefersReducedMotion() {
+  return typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/** Counts up to `value`; `format` controls rendering. Flashes when the value grows. */
+export function CountUp({ value, format = fmt, ms, className }: { value: number; format?: (n: number) => string; ms?: number; className?: string }) {
+  const n = useCountUp(value, ms);
+  const prev = useRef(value);
+  const [bump, setBump] = useState(0);
+  useEffect(() => {
+    if (value > prev.current) setBump((b) => b + 1);
+    prev.current = value;
+  }, [value]);
+  return (
+    <span key={bump} className={`num ${bump ? 'bump' : ''} ${className ?? ''}`}>
+      {format(n)}
+    </span>
+  );
+}
+
+function Pill({ icon, value, label, onClick, timer, kind }: { icon: ReactNode; value: ReactNode; label: string; onClick: () => void; timer?: string; kind: string }) {
+  return (
+    <button className={`pill ${kind}`} onClick={onClick} aria-label={label}>
+      <span className="pill-ico">{icon}</span>
+      <span className="pill-num">{value}</span>
+      <span className="plus" aria-hidden>
+        <Plus size={11} strokeWidth={3.2} />
+      </span>
+      {timer && <span className="timer num">{timer}</span>}
+    </button>
+  );
+}
+
 export function TopBar() {
   const p = useStore((s) => s.profile);
   const openModal = useStore((s) => s.openModal);
@@ -124,83 +197,61 @@ export function TopBar() {
     useStore.setState({ shopTab: tab });
     navigate('shop');
   };
+  const xpPct = Math.max(0, Math.min(100, (p.xp / Math.max(1, p.xpToNext)) * 100));
   return (
     <header className="topbar">
       <button
-        className="row"
-        style={{ gap: 8 }}
+        className="tb-profile"
         onClick={() => {
           click();
           openModal({ type: 'settings' });
         }}
-        aria-label="Профиль и настройки"
+        aria-label={`${p.displayName}, уровень ${p.level}. Профиль и настройки`}
       >
-        <span className="avatar-wrap">
+        <span className="avatar-wrap" style={{ '--xp': `${xpPct}%` } as React.CSSProperties}>
           <Avatar url={p.avatarUrl} name={p.displayName} skin={p.selectedSkin} />
-          <span className="lvl-dot">{p.level}</span>
+          <span className="lvl-dot num">{p.level}</span>
         </span>
-        <div className="who" style={{ textAlign: 'left' }}>
+        <span className="who">
           <b>{p.displayName}</b>
           <span>Ур. {p.level}</span>
-          <div className="bar">
-            <i style={{ width: `${Math.min(100, (p.xp / p.xpToNext) * 100)}%` }} />
-          </div>
-        </div>
+          <span className="bar">
+            <i style={{ width: `${xpPct}%` }} />
+          </span>
+        </span>
       </button>
       <div className="pills">
-        <button
-          className="pill"
+        <Pill
+          kind="energy"
+          icon={<Bolt size={20} />}
+          value={
+            <>
+              <CountUp value={energy.value} format={short} />
+              {energy.value <= energy.cap && <span className="pill-cap">/{energy.cap}</span>}
+            </>
+          }
+          label={`Энергия ${energy.value} из ${energy.cap}`}
+          timer={energy.next > 0 ? clock(energy.next) : undefined}
           onClick={() => {
             click();
             openModal({ type: 'energy' });
           }}
-          aria-label="Энергия"
-        >
-          <Bolt />
-          <span className="num">
-            {energy.value}/{energy.cap}
-          </span>
-          <span className="plus">
-            <Plus size={12} strokeWidth={3} />
-          </span>
-          {energy.next > 0 && <span className="timer">{clock(energy.next)}</span>}
-        </button>
-        <button className="pill" onClick={() => openShop('energy')} aria-label="Кредиты">
-          <Coin />
-          <span className="num">{compactPill(p.balances.credits)}</span>
-          <span className="plus">
-            <Plus size={12} strokeWidth={3} />
-          </span>
-        </button>
-        <button
-          className="pill"
+        />
+        <Pill kind="credits" icon={<Coin size={20} />} value={<CountUp value={p.balances.credits} format={short} />} label="Кредиты" onClick={() => openShop('energy')} />
+        <Pill
+          kind="shards"
+          icon={<Shard size={20} />}
+          value={<CountUp value={p.balances.shards} format={short} />}
+          label="Осколки"
           onClick={() => {
             click();
             openModal({ type: 'shards' });
           }}
-          aria-label="Осколки"
-        >
-          <Shard />
-          <span className="num">{compactPill(p.balances.shards)}</span>
-          <span className="plus">
-            <Plus size={12} strokeWidth={3} />
-          </span>
-        </button>
-        <button className="pill" onClick={() => openShop('stars')} aria-label="Звёзды">
-          <StarIcon />
-          <span className="num">{compactPill(p.balances.stars)}</span>
-          <span className="plus">
-            <Plus size={12} strokeWidth={3} />
-          </span>
-        </button>
+        />
+        <Pill kind="stars" icon={<StarIcon size={20} />} value={<CountUp value={p.balances.stars} format={short} />} label="Звёзды" onClick={() => openShop('stars')} />
       </div>
     </header>
   );
-}
-
-function compactPill(n: number) {
-  if (n >= 100000) return `${Math.floor(n / 1000)}K`;
-  return fmt(n);
 }
 
 const NAV: { screen: Screen; label: string; icon: ReactNode }[] = [
@@ -240,10 +291,12 @@ export function BottomNav() {
   );
 }
 
+/** In-app back: Telegram shows its native BackButton, so this floats only outside Telegram. */
 export function BackBar({ title, right }: { title?: string; right?: ReactNode }) {
   const back = useStore((s) => s.back);
+  if (tg.available && !title && !right) return null;
   return (
-    <div className="row" style={{ margin: '4px 0 6px' }}>
+    <div className={title || right ? 'back-row' : 'back-float'}>
       <button
         className="icon-btn"
         onClick={() => {
@@ -319,16 +372,51 @@ export function Img({ src, className, style, alt = '' }: { src: string; classNam
   return <img src={src} alt={alt} className={className} style={style} loading="lazy" decoding="async" onError={() => setOk(false)} />;
 }
 
-export function Logo({ size = 44 }: { size?: number }) {
+/** VOID RUSH wordmark: chrome "V◯ID" with a spinning portal O, cyan brush "RUSH" with speed flicks. */
+export function Logo({ size = 44, className }: { size?: number; className?: string }) {
   return (
-    <div className="logo" style={{ fontSize: size }}>
-      <span className="logo-void">
-        V<span className="logo-o" />
-        ID
+    <div className={`logo ${className ?? ''}`} style={{ fontSize: size }} role="img" aria-label="VOID RUSH">
+      <span className="logo-void" aria-hidden>
+        <span className="logo-chrome">V</span>
+        <span className="logo-o">
+          <i />
+        </span>
+        <span className="logo-chrome">ID</span>
       </span>
-      <span className="logo-rush">RUSH</span>
+      <span className="logo-rush" aria-hidden>
+        <span className="logo-rush-text">RUSH</span>
+        <svg className="logo-flicks" viewBox="0 0 60 40">
+          <path d="M8 38 L44 4 L46 5 L12 38 Z" />
+          <path d="M24 38 L56 10 L57 11.5 L28 38 Z" />
+          <path d="M40 20 L58 2 L58.6 3 L42 20 Z" />
+        </svg>
+      </span>
     </div>
   );
+}
+
+/** Light parallax for hero art: translates the element as the page scrolls. */
+export function useParallax<T extends HTMLElement>(factor = 0.25) {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    let raf = 0;
+    const apply = () => {
+      raf = 0;
+      const el = ref.current;
+      if (el) el.style.transform = `translate3d(0, ${Math.min(240, window.scrollY) * factor}px, 0) scale(1.06)`;
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(apply);
+    };
+    apply();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [factor]);
+  return ref;
 }
 
 export function ScreenArt({ src, height, children, position = 'center', fade = true }: { src: string; height: number; children?: ReactNode; position?: string; fade?: boolean }) {

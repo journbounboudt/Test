@@ -12,6 +12,7 @@ import { DEFAULT_CONFIG, DEFAULT_GEAR, RunSim, type RouteId, type SkinDef, type 
 import { EntityViews } from '../game/entities';
 import { profileFor } from '../game/quality';
 import { RunnerModel, type RunnerPose } from '../game/runner';
+import { loadRunnerAsset } from '../game/runnerAsset';
 import { glowTexture } from '../game/textures';
 import { World } from '../game/world';
 
@@ -69,6 +70,8 @@ function gradientBg(top: string, mid: string, bottom: string) {
 
 function runner(id: string, pose: RunnerPose, phase: number) {
   const r = new RunnerModel(skin(id));
+  // Close-up stills: tone down the additive glow sprites so the armour reads instead of a flare.
+  r.glow = 0.55;
   // Advance the procedural cycle to a readable stride.
   r.update(phase, pose, 30, phase);
   return r;
@@ -375,7 +378,7 @@ async function render(shot: Shot) {
     const composer = new EffectComposer(renderer);
     composer.setSize(shot.w, shot.h);
     composer.addPass(new RenderPass(scene, cam));
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(shot.w, shot.h), shot.bloom ?? 0.8, 0.5, 0.72));
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(shot.w, shot.h), shot.bloom ?? 0.75, 0.45, 0.9));
     composer.addPass(new OutputPass());
     composer.render();
   }
@@ -389,6 +392,7 @@ async function render(shot: Shot) {
 }
 
 async function main() {
+  await loadRunnerAsset();
   const only = new URLSearchParams(location.search).get('only');
   for (const s of shots) {
     if (only && !s.name.startsWith(only)) continue;

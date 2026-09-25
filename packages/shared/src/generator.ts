@@ -3,8 +3,8 @@ import type { RouteConfig, SimConfig } from './config.ts';
 import { SpeedProfile } from './profile.ts';
 import { Rng } from './rng.ts';
 
-export type PickupKind = 'shard' | 'credit' | 'charge' | 'core';
-export type HazardKind = 'blocker' | 'gate' | 'laser' | 'hole' | 'debris' | 'spike' | 'mine' | 'pulse';
+export type PickupKind = 'shard' | 'credit' | 'charge' | 'core' | 'pad';
+export type HazardKind = 'blocker' | 'gate' | 'laser' | 'hole' | 'debris' | 'spike' | 'mine' | 'pulse' | 'rotor';
 export type EntityKind = PickupKind | HazardKind | 'checkpoint' | 'hint';
 
 export interface Entity {
@@ -30,7 +30,7 @@ export interface Entity {
   cpIndex?: number;
 }
 
-export const PICKUP_KINDS: ReadonlySet<EntityKind> = new Set<EntityKind>(['shard', 'credit', 'charge', 'core']);
+export const PICKUP_KINDS: ReadonlySet<EntityKind> = new Set<EntityKind>(['shard', 'credit', 'charge', 'core', 'pad']);
 export const HAZARD_DEPTH: Record<HazardKind, number> = {
   blocker: 2.2,
   gate: 1.2,
@@ -40,6 +40,7 @@ export const HAZARD_DEPTH: Record<HazardKind, number> = {
   spike: 1.0,
   mine: 1.6,
   pulse: 1.0,
+  rotor: 0.8,
 };
 
 const SLICE = 0.05;
@@ -114,6 +115,16 @@ function compile(def: ChunkDef, mirror: boolean, rLane: number): CompiledChunk {
     const o = open === 'r' ? rLane : m(open);
     hazards.push({ kind: 'pulse', beat, endBeat: beat, mask: 7 & ~bit(o), hard: true, open: o });
     end = Math.max(end, beat);
+  }
+  for (const [beat, open] of def.rotors ?? []) {
+    const o = open === 'r' ? rLane : m(open);
+    hazards.push({ kind: 'rotor', beat, endBeat: beat, mask: 7 & ~bit(o), hard: true, open: o });
+    end = Math.max(end, beat);
+  }
+  for (const [beat, lane, count, gap] of def.pads ?? []) {
+    const l = lane === 'r' ? rLane : m(lane);
+    for (let i = 0; i < count; i++) pickups.push({ kind: 'pad', beat: beat + i * gap, lane: l });
+    end = Math.max(end, beat + (count - 1) * gap);
   }
   for (const [beat, lane, count, gap, kind] of def.lines ?? []) {
     const l = lane === 'r' ? rLane : m(lane);
@@ -236,6 +247,14 @@ export class RouteStream {
     return c;
   }
 
+  /** Climax window is measured on the reference speed curve (not player speed) so it stays deterministic. */
+  private inClimax(): boolean {
+    const c = this.route.climax;
+    if (!c) return false;
+    const t = this.profile.timeAtDistance(this.cursor);
+    return t >= this.route.durationSec - c.lastSec && t < this.route.durationSec;
+  }
+
   private fraction(z: number) {
     return Math.min(1, this.profile.timeAtDistance(z) / this.route.durationSec);
   }
@@ -254,7 +273,12 @@ export class RouteStream {
     let hi = ramp[0][2];
     for (const [at, a, b] of ramp) if (f >= at) [lo, hi] = [a, b];
     const theme = this.route.theme;
-    const pool = CHUNKS.filter((c) => !c.special && c.d >= lo && c.d <= hi && (!c.themes || c.themes.includes(theme)));
+    const climax = this.inClimax();
+    if (climax) {
+      const bossPool = CHUNKS.filter((c) => c.climax && c.d <= hi + 1 && c.id !== this.lastChunk);
+      if (bossPool.length) return this.rng.pick(bossPool);
+    }
+    const pool = CHUNKS.filter((c) => !c.special && !c.climax && c.d >= lo && c.d <= hi && (!c.themes || c.themes.includes(theme)));
     return this.rng.weighted(pool, (c) => {
       let w = c.w ?? 1;
       for (const tag of c.tags) w *= this.route.tagWeights[tag] ?? 1;
@@ -273,9 +297,9 @@ export class RouteStream {
     const f = this.fraction(this.cursor);
     const t = this.profile.timeAtDistance(this.cursor);
     const speed = this.profile.speedAt(t);
-    const scale = this.route.timingScale * (1 - 0.15 * f);
+    const scale = this.route.timingScale * (1 - 0.22 * f);
     const mPerBeat = speed * scale;
-    const gapBeats = 1.0 - 0.45 * f;
+    const gapBeats = 0.9 - 0.45 * f;
     const laneBeats = ((1 / this.sim.laneSpeed) * 1.35) / scale;
     const moveSlices = Math.max(1, Math.ceil(laneBeats / SLICE));
 
@@ -340,6 +364,7 @@ export class RouteStream {
         e.open = h.open;
         e.z0 = e.z;
       }
+      if (h.kind === 'rotor') e.open = h.open;
       entities.push(e);
     }
 
