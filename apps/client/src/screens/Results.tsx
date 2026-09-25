@@ -213,7 +213,7 @@ export function Results() {
               navigate('gear');
             }}
           >
-            Улучшить снаряжение
+            Улучшить
           </Cta>
         ) : (
           <Cta small={canDouble} loading={busyRun} onClick={() => void startRun(result.routeId)}>

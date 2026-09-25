@@ -70,6 +70,8 @@ function gradientBg(top: string, mid: string, bottom: string) {
 
 function runner(id: string, pose: RunnerPose, phase: number) {
   const r = new RunnerModel(skin(id));
+  // Close-up stills: tone down the additive glow sprites so the armour reads instead of a flare.
+  r.glow = 0.55;
   // Advance the procedural cycle to a readable stride.
   r.update(phase, pose, 30, phase);
   return r;

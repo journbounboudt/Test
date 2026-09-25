@@ -6,9 +6,9 @@ A Telegram Mini App: a **60-second 3D lane runner** with lightweight meta progre
 | --- | --- | --- | --- |
 | ![Home](docs/screenshots/home.jpg) | ![Run](docs/screenshots/run.jpg) | ![Results](docs/screenshots/results.jpg) | ![Gear](docs/screenshots/gear.jpg) |
 
-| Shop | Season Pass | Weekly tournament |
-| --- | --- | --- |
-| ![Shop](docs/screenshots/shop.jpg) | ![Pass](docs/screenshots/pass.jpg) | ![Leaderboard](docs/screenshots/leaderboard.jpg) |
+| Shop | Season Pass | Weekly tournament | How to play |
+| --- | --- | --- | --- |
+| ![Shop](docs/screenshots/shop.jpg) | ![Pass](docs/screenshots/pass.jpg) | ![Leaderboard](docs/screenshots/leaderboard.jpg) | ![How to play](docs/screenshots/howto.jpg) |
 
 ## Architecture
 
@@ -30,6 +30,10 @@ Key design points:
 - **Survivable generation.** Every chunk placement is checked by a lane-path DP, and a lookahead bot test plays sampled seeds on every route (base and max gear) without gadgets.
 - **Economy.** Balances, energy timestamps, gear, skins, pass progress, missions, leaderboard settlement and purchases all live on the server. Mutations run in SQLite transactions. Purchases are idempotent per client key, and provider callbacks are deduplicated by `telegram_payment_charge_id`.
 - **Rendering split** (spec §5). Menus are 2D DOM. Menu art is pre-rendered from the game's own 3D scene (see *Art studio*). Three.js is lazy-loaded for the run and the Gear/skin viewer. The engine uses pooled obstacle views, instanced pickups, a fixed particle pool, shaders compiled at run start, and automatic quality downgrade.
+- **Hero character.** `tools/blender/build_runner.py` builds the Runner in Blender 4.2 (headless): layered armour over an undersuit, baked AO, a 22-bone rig and `Run`/`Sprint`/`Idle`/`StrafeL`/`StrafeR`/`Fall`/`Victory` clips. It exports a meshopt-compressed GLB (`apps/client/public/models/runner.glb`, ~265 KB). Materials `Suit`/`Plate`/`Trim`/`Visor` are recoloured at runtime for skins. Regenerate with `tools/blender/build.sh`; `scripts/setup-blender.sh` installs Blender if missing. If the GLB fails to load, a procedural fallback model is used.
+- **Difficulty tuning.** Each route has its own reaction-window scale, chunk-difficulty ramp and obstacle mix. Bridge and Secret end in a mini-boss climax (the last 9–10 s): a colossus rises, throws debris, and a warning banner appears. `node packages/shared/scripts/difficulty.ts` plays every route with human-like bots (reaction latency, missed decisions) and reports finish rates. Current casual-player finish rates: Neon ~70%, Event ~64%, Rift ~30%, Bridge ~20%, Secret ~7%. Deaths in the first 15 s are near zero outside Secret. Grade thresholds are calibrated so an average player earns S and S+ takes mastery.
+- **Game feel.** A speed/impact post-pass (radial blur, chromatic aberration, tinted vignette), pooled shockwave rings, brief slow-motion on near misses and shield blocks, a hex-grid shield bubble, magnet pull particles, an Ultimate aura plus warp rings, combo milestone callouts, boost pads and rotating blade gates.
+- **Onboarding once.** First-time players get the How-to screen and the scripted tutorial. Controls hints appear only in the tutorial and the first two real runs; after that the game never shows them again.
 - **Audio.** WebAudio music (menu and run, which intensifies in the last 15 s) and all SFX are synthesized procedurally, so there are no audio downloads.
 
 ## Running locally
@@ -81,13 +85,12 @@ Menu illustrations in `apps/client/public/art` are rendered from the real game s
 
 Implemented:
 
-- **Run:** three lanes with swipe buffering, speed curves, 8 obstacle families (blocker, dual-lane gate, telegraphed laser, moving mine, broken platform, falling debris, pulse wall, void spike), soft/hard collisions and near misses, shards/credits/boost charges/event cores, combo with a ×5 multiplier cap, checkpoint boosts (6 types), Shield/Magnet gadgets, the Void Break Ultimate, one server-paid revive, finish portal, grades C–S+.
+- **Run:** three lanes with swipe buffering, speed curves, 9 obstacle families (blocker, dual-lane gate, telegraphed laser, moving mine, broken platform, falling debris, pulse wall, void spike, rotating barrier), boost pads, a mini-boss climax on hard routes, soft/hard collisions and near misses, shards/credits/boost charges/event cores, combo with a ×5 multiplier cap, checkpoint boosts (6 types), Shield/Magnet gadgets, the Void Break Ultimate, one server-paid revive, finish portal, grades C–S+.
 - **Routes:** Neon Tunnel, Void Rift, Broken Bridge, Secret Route (unlock rules), Event route with a distant boss, and a scripted tutorial.
 - **Meta:** player level, 6 gear slots (upgrade and "Upgrade all" with confirmation), 7 skins with preview/compare/equip, shop (Stars packs, VIP, energy, revive, credits, skins, pass), 30-level Season Pass with free and premium tracks, daily/weekly missions, login streak, weekly Top-100/Friends leaderboard with settled reward tiers, community boss event with milestones, analytics events, settings (music, SFX, haptics, reduced shake/flash, graphics tier), and loading/error/maintenance/version-mismatch states.
 
 Not yet done or not verified:
 
 - Real Telegram Stars payments and `initData` login were not exercised end to end, because that needs a bot token. The code paths are unit-tested with signed fixtures and the sandbox provider.
-- The *Rotating Barrier* obstacle family is not implemented (8 of the ~8–12 recommended families are).
 - Friends are players connected through referral links; Telegram doesn't expose contact lists to Mini Apps.
 - Visual checks ran in headless Chrome with software WebGL. On-device frame-rate tuning is still needed.
